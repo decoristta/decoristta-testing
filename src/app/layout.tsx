@@ -15,6 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://decoristta-source-code.vercel.app"),
   title: "Decoristta | Premium Home Decor",
   description: "Style Your Story. Explore our stunning collection of considered furniture, luxury lights, sculptural vases, and classic antiques for calm, warm interiors.",
   keywords: ["luxury home decor", "premium furniture", "interior design", "antique showpieces", "modern vases", "Decoristta", "home styling"],
