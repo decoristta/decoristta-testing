@@ -3,17 +3,28 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase/config";
+import { auth } from "@/lib/firebase/config";
+import { getUserAddresses, addAddress, updateAddress, deleteAddress } from "@/app/actions/addresses";
 import styles from "./page.module.css";
 import { useAuth } from "@/context/AuthContext";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 
 interface Address {
   id: string;
-  title: string;
-  fullAddress: string;
+  addressLine: string;
+  landmark: string | null;
+  state: string;
+  city: string;
+  pincode: string;
 }
+
+const INDIAN_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
+  "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+  "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana",
+  "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+];
 
 export default function AccountPage() {
   const router = useRouter();
@@ -22,7 +33,11 @@ export default function AccountPage() {
   const [activeTab, setActiveTab] = useState<"profile" | "addresses" | "orders">("profile");
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
-  const [editAddressData, setEditAddressData] = useState<{id?: string, title: string, fullAddress: string}>({ title: '', fullAddress: '' });
+  const [editAddressData, setEditAddressData] = useState<{id?: string, addressLine: string, landmark: string, state: string, city: string, pincode: string}>({
+    addressLine: '', landmark: '', state: '', city: '', pincode: ''
+  });
+  const [addressError, setAddressError] = useState("");
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -30,18 +45,19 @@ export default function AccountPage() {
     }
   }, [user, loading, router]);
 
-  useEffect(() => {
+  const fetchAddresses = async () => {
     if (user) {
-      const q = query(collection(db, "users", user.uid, "addresses"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const addrList: Address[] = [];
-        snapshot.forEach((doc) => {
-          addrList.push({ id: doc.id, ...doc.data() } as Address);
-        });
-        setAddresses(addrList);
-      });
-      return () => unsubscribe();
+      setIsLoadingAddresses(true);
+      const res = await getUserAddresses(user.uid);
+      if (res.success && res.addresses) {
+        setAddresses(res.addresses as Address[]);
+      }
+      setIsLoadingAddresses(false);
     }
+  };
+
+  useEffect(() => {
+    fetchAddresses();
   }, [user]);
 
   const handleLogout = async () => {
@@ -52,33 +68,42 @@ export default function AccountPage() {
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    setAddressError("");
+    
+    // Strict 6 digit validation
+    if (!/^\d{6}$/.test(editAddressData.pincode)) {
+      setAddressError("Pincode must be exactly 6 digits.");
+      return;
+    }
     
     try {
+      let res;
       if (editAddressData.id) {
-        // Update
-        const ref = doc(db, "users", user.uid, "addresses", editAddressData.id);
-        await updateDoc(ref, {
-          title: editAddressData.title,
-          fullAddress: editAddressData.fullAddress
-        });
+        res = await updateAddress(user.uid, editAddressData.id, editAddressData as any);
       } else {
-        // Add new
-        await addDoc(collection(db, "users", user.uid, "addresses"), {
-          title: editAddressData.title,
-          fullAddress: editAddressData.fullAddress
-        });
+        res = await addAddress(user.uid, editAddressData as any);
       }
-      setIsEditingAddress(false);
-      setEditAddressData({ title: '', fullAddress: '' });
+      
+      if (res.success) {
+        setIsEditingAddress(false);
+        setEditAddressData({ addressLine: '', landmark: '', state: '', city: '', pincode: '' });
+        fetchAddresses(); // Refresh list
+      } else {
+        setAddressError(res.error || "Failed to save address");
+      }
     } catch (err) {
       console.error("Error saving address:", err);
+      setAddressError("An unexpected error occurred.");
     }
   };
 
   const handleDeleteAddress = async (id: string) => {
     if (!user) return;
     try {
-      await deleteDoc(doc(db, "users", user.uid, "addresses", id));
+      const res = await deleteAddress(user.uid, id);
+      if (res.success) {
+        fetchAddresses();
+      }
     } catch (err) {
       console.error("Error deleting address:", err);
     }
@@ -149,70 +174,144 @@ export default function AccountPage() {
 
           {activeTab === 'addresses' && (
             <div>
-              <h2 className={styles.sectionTitle}>Address Book</h2>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>Address Book</h2>
+                {!isEditingAddress && (
+                  <button 
+                    className={styles.addBtnSmall}
+                    onClick={() => {
+                      setEditAddressData({ addressLine: '', landmark: '', state: '', city: '', pincode: '' });
+                      setAddressError("");
+                      setIsEditingAddress(true);
+                    }}
+                  >
+                    <Plus size={18} /> Add New Address
+                  </button>
+                )}
+              </div>
               
               {isEditingAddress ? (
-                <form onSubmit={handleSaveAddress}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Address Title (e.g., Home, Work)</label>
-                    <input 
-                      type="text" 
-                      className={styles.input} 
-                      value={editAddressData.title}
-                      onChange={e => setEditAddressData({...editAddressData, title: e.target.value})}
-                      required
-                    />
+                <form onSubmit={handleSaveAddress} className={styles.addressForm}>
+                  <div className={styles.formGrid}>
+                    <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                      <label className={styles.label}>Flat, House no., Building, Company, Apartment</label>
+                      <input 
+                        type="text" 
+                        className={styles.input} 
+                        value={editAddressData.addressLine}
+                        onChange={e => setEditAddressData({...editAddressData, addressLine: e.target.value})}
+                        required
+                        placeholder="123 Design Street, Suite 400"
+                      />
+                    </div>
+                    
+                    <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                      <label className={styles.label}>Landmark (Optional)</label>
+                      <input 
+                        type="text" 
+                        className={styles.input} 
+                        value={editAddressData.landmark}
+                        onChange={e => setEditAddressData({...editAddressData, landmark: e.target.value})}
+                        placeholder="E.g. Near Apollo Hospital"
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Town / City</label>
+                      <input 
+                        type="text" 
+                        className={styles.input} 
+                        value={editAddressData.city}
+                        onChange={e => setEditAddressData({...editAddressData, city: e.target.value})}
+                        required
+                        placeholder="New Delhi"
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>State</label>
+                      <select 
+                        className={styles.input}
+                        value={editAddressData.state}
+                        onChange={e => setEditAddressData({...editAddressData, state: e.target.value})}
+                        required
+                      >
+                        <option value="" disabled>Select a state</option>
+                        {INDIAN_STATES.map(state => (
+                          <option key={state} value={state}>{state}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Pincode</label>
+                      <input 
+                        type="text" 
+                        className={styles.input} 
+                        value={editAddressData.pincode}
+                        onChange={e => {
+                          // Only allow numbers, max 6 digits
+                          const val = e.target.value.replace(/[^0-9]/g, '').substring(0, 6);
+                          setEditAddressData({...editAddressData, pincode: val});
+                        }}
+                        required
+                        pattern="[0-9]{6}"
+                        title="Pincode must be exactly 6 digits"
+                        placeholder="110001"
+                      />
+                    </div>
                   </div>
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Full Address</label>
-                    <textarea 
-                      className={styles.textarea} 
-                      value={editAddressData.fullAddress}
-                      onChange={e => setEditAddressData({...editAddressData, fullAddress: e.target.value})}
-                      required
-                      placeholder="123 Design Street, Suite 400..."
-                    />
-                  </div>
-                  <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button type="submit" className={styles.submitBtn}>Save Address</button>
+                  
+                  {addressError && <div className={styles.errorText}>{addressError}</div>}
+
+                  <div className={styles.formActions}>
                     <button type="button" className={styles.cancelBtn} onClick={() => setIsEditingAddress(false)}>Cancel</button>
+                    <button type="submit" className={styles.submitBtn}>Save Address</button>
                   </div>
                 </form>
               ) : (
                 <div className={styles.addressList}>
-                  {addresses.map(addr => (
-                    <div key={addr.id} className={styles.addressCard}>
-                      <div className={styles.addressTitle}>{addr.title}</div>
-                      <div className={styles.addressText}>{addr.fullAddress}</div>
-                      <div className={styles.addressActions}>
-                        <button 
-                          className={styles.actionBtn} 
-                          onClick={() => {
-                            setEditAddressData(addr);
-                            setIsEditingAddress(true);
-                          }}
-                        >
-                          <Edit2 size={16} /> Edit
-                        </button>
-                        <button 
-                          className={`${styles.actionBtn} ${styles.deleteBtn}`} 
-                          onClick={() => handleDeleteAddress(addr.id)}
-                        >
-                          <Trash2 size={16} /> Delete
-                        </button>
-                      </div>
+                  {isLoadingAddresses ? (
+                    <p style={{ color: '#666' }}>Loading addresses...</p>
+                  ) : addresses.length === 0 ? (
+                    <div className={styles.emptyState}>
+                      <p>You haven't saved any addresses yet.</p>
                     </div>
-                  ))}
-                  <button 
-                    className={styles.addBtn}
-                    onClick={() => {
-                      setEditAddressData({ title: '', fullAddress: '' });
-                      setIsEditingAddress(true);
-                    }}
-                  >
-                    <Plus size={24} />
-                    <span>Add New Address</span>
-                  </button>
+                  ) : (
+                    addresses.map(addr => (
+                      <div key={addr.id} className={styles.addressCard}>
+                        <div className={styles.addressDetails}>
+                          <p className={styles.addressLinePrimary}>{addr.addressLine}</p>
+                          {addr.landmark && <p className={styles.addressLineSecondary}>Near {addr.landmark}</p>}
+                          <p className={styles.addressLineSecondary}>{addr.city}, {addr.state} - {addr.pincode}</p>
+                        </div>
+                        <div className={styles.addressActions}>
+                          <button 
+                            className={styles.actionBtn} 
+                            onClick={() => {
+                              setEditAddressData({
+                                id: addr.id,
+                                addressLine: addr.addressLine,
+                                landmark: addr.landmark || '',
+                                state: addr.state,
+                                city: addr.city,
+                                pincode: addr.pincode
+                              });
+                              setIsEditingAddress(true);
+                            }}
+                          >
+                            <Edit2 size={16} /> Edit
+                          </button>
+                          <button 
+                            className={`${styles.actionBtn} ${styles.deleteBtn}`} 
+                            onClick={() => handleDeleteAddress(addr.id)}
+                          >
+                            <Trash2 size={16} /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
