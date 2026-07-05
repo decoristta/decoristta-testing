@@ -6,7 +6,8 @@ import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 
 export async function setSession(uid: string) {
-  cookies().set("session", uid, {
+  const cookieStore = await cookies();
+  cookieStore.set("session", uid, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 7, // 1 week
@@ -15,7 +16,8 @@ export async function setSession(uid: string) {
 }
 
 export async function clearSession() {
-  cookies().delete("session");
+  const cookieStore = await cookies();
+  cookieStore.delete("session");
 }
 
 /**
