@@ -3,6 +3,20 @@
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { cookies } from "next/headers";
+
+export async function setSession(uid: string) {
+  cookies().set("session", uid, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 7, // 1 week
+    path: "/",
+  });
+}
+
+export async function clearSession() {
+  cookies().delete("session");
+}
 
 /**
  * Syncs a user profile from Firebase Auth to the PostgreSQL database.
@@ -13,29 +27,22 @@ export async function syncUserToDatabase(
   data: { phone?: string; email?: string; displayName: string }
 ) {
   try {
-    // Check if user already exists
-    const existing = await db.select().from(users).where(eq(users.firebaseUid, firebaseUid));
-
-    if (existing.length > 0) {
-      // Update existing
-      await db.update(users)
-        .set({
-          phone: data.phone || existing[0].phone,
-          email: data.email || existing[0].email,
-          displayName: data.displayName,
-          updatedAt: new Date(),
-        })
-        .where(eq(users.firebaseUid, firebaseUid));
-    } else {
-      // Insert new user
-      await db.insert(users).values({
-        firebaseUid,
-        phone: data.phone,
+    // Insert new user or Update if they exist (Failsafe Sync)
+    await db.insert(users).values({
+      firebaseUid,
+      phone: data.phone,
+      email: data.email,
+      displayName: data.displayName,
+      marketingConsent: false,
+    }).onConflictDoUpdate({
+      target: users.firebaseUid,
+      set: {
+        phone: data.phone, // We don't overwrite with null if they just signed in with Google
         email: data.email,
         displayName: data.displayName,
-        marketingConsent: false, // Default to false, could add to UI later
-      });
-    }
+        updatedAt: new Date(),
+      }
+    });
 
     return { success: true };
   } catch (error: any) {

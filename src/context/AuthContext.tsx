@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
-import { getUserProfile } from "@/app/actions/auth";
+import { getUserProfile, setSession, clearSession } from "@/app/actions/auth";
 
 interface UserProfile {
   name?: string;
@@ -40,24 +40,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       clearTimeout(fallbackTimer);
+      setUser(firebaseUser);
+      
       if (firebaseUser) {
-        setUser(firebaseUser);
+        // Set secure server session cookie for middleware
+        await setSession(firebaseUser.uid);
         
         // Fetch profile from Postgres via Server Action
-        const fetchProfile = async () => {
-          const res = await getUserProfile(firebaseUser.uid);
-          if (res.success && res.profile) {
-            setProfile(res.profile as UserProfile);
-          } else {
-            setProfile(null);
-          }
-          setLoading(false);
-        };
-        fetchProfile();
-
-        return () => {};
+        const res = await getUserProfile(firebaseUser.uid);
+        if (res.success && res.profile) {
+          setProfile(res.profile as UserProfile);
+        } else {
+          setProfile(null);
+        }
+        setLoading(false);
       } else {
-        setUser(null);
+        // Clear secure server session cookie
+        await clearSession();
         setProfile(null);
         setLoading(false);
       }

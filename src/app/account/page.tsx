@@ -60,6 +60,33 @@ export default function AccountPage() {
     fetchAddresses();
   }, [user]);
 
+  // Smart Geocoding for Pincode
+  useEffect(() => {
+    if (editAddressData.pincode.length === 6 && isEditingAddress) {
+      const fetchCityState = async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_PINCODE_API_URL || "https://api.postalpincode.in/pincode";
+          const res = await fetch(`${apiUrl}/${editAddressData.pincode}`);
+          const data = await res.json();
+          if (data && data[0] && data[0].Status === "Success") {
+            const postOffice = data[0].PostOffice[0];
+            setEditAddressData(prev => ({
+              ...prev,
+              city: postOffice.District,
+              state: postOffice.State
+            }));
+            setAddressError(""); // Clear any previous pincode errors
+          } else {
+            setAddressError("Invalid Pincode. No region found.");
+          }
+        } catch (e) {
+          console.error("Geocoding error", e);
+        }
+      };
+      fetchCityState();
+    }
+  }, [editAddressData.pincode, isEditingAddress]);
+
   const handleLogout = async () => {
     await signOut(auth);
     router.push("/");
