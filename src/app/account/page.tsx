@@ -243,6 +243,24 @@ export default function AccountPage() {
                       />
                     </div>
 
+                    <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                      <label className={styles.label}>Pincode</label>
+                      <input 
+                        type="text" 
+                        className={styles.input} 
+                        value={editAddressData.pincode}
+                        onChange={e => {
+                          // Only allow numbers, max 6 digits
+                          const val = e.target.value.replace(/[^0-9]/g, '').substring(0, 6);
+                          setEditAddressData({...editAddressData, pincode: val});
+                        }}
+                        required
+                        pattern="[0-9]{6}"
+                        title="Pincode must be exactly 6 digits"
+                        placeholder="110001"
+                      />
+                    </div>
+
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Town / City</label>
                       <input 
@@ -268,24 +286,6 @@ export default function AccountPage() {
                           <option key={state} value={state}>{state}</option>
                         ))}
                       </select>
-                    </div>
-
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Pincode</label>
-                      <input 
-                        type="text" 
-                        className={styles.input} 
-                        value={editAddressData.pincode}
-                        onChange={e => {
-                          // Only allow numbers, max 6 digits
-                          const val = e.target.value.replace(/[^0-9]/g, '').substring(0, 6);
-                          setEditAddressData({...editAddressData, pincode: val});
-                        }}
-                        required
-                        pattern="[0-9]{6}"
-                        title="Pincode must be exactly 6 digits"
-                        placeholder="110001"
-                      />
                     </div>
                   </div>
                   

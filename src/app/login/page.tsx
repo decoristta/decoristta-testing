@@ -22,11 +22,15 @@ export default function LoginPage() {
   const { user, profile, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    // If logged in and profile exists, redirect to account
-    if (user && profile && !authLoading) {
-      router.push("/account");
-    } else if (user && !profile && !authLoading && step !== "profile") {
-      setStep("profile");
+    if (user && !authLoading) {
+      // Profile is considered complete if it exists and has a displayName
+      const isProfileComplete = profile && profile.displayName && profile.displayName.trim() !== "";
+      
+      if (isProfileComplete) {
+        router.push("/account");
+      } else if (step !== "profile") {
+        setStep("profile");
+      }
     }
   }, [user, profile, authLoading, router, step]);
 
@@ -74,7 +78,7 @@ export default function LoginPage() {
     try {
       // Ensure phone number has country code and NO spaces/dashes (strict E.164 format)
       let cleaned = phoneNumber.replace(/[^0-9+]/g, '');
-      const formattedPhone = cleaned.startsWith('+') ? cleaned : `+1${cleaned}`;
+      const formattedPhone = cleaned.startsWith('+') ? cleaned : `+91${cleaned}`;
       
       const appVerifier = window.recaptchaVerifier;
       const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
@@ -100,18 +104,18 @@ export default function LoginPage() {
       const user = result.user;
       
       if (user) {
-         // Failsafe DB Sync: instantly create their row so they are never orphaned!
-         await syncUserToDatabase(user.uid, {
+         // Failsafe DB Sync: Fire and forget (don't await) so it's lightning fast!
+         syncUserToDatabase(user.uid, {
            displayName: "",
            phone: user.phoneNumber || undefined,
-         });
-         setStep("profile"); // Ask for their name
+         }).catch(console.error);
+         
+         // Let the useEffect at the top handle the redirect cleanly
       }
     } catch (err: any) {
       setError(err.message || "Invalid OTP code.");
-    } finally {
       setLoading(false);
-    }
+    } 
   };
 
   const handleGoogleSignIn = async () => {
@@ -121,20 +125,18 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       
-      // Failsafe DB Sync: Google gives us their name and email instantly
-      await syncUserToDatabase(result.user.uid, {
+      // Failsafe DB Sync: Fire and forget!
+      syncUserToDatabase(result.user.uid, {
         displayName: result.user.displayName || "User",
         email: result.user.email || undefined,
         phone: result.user.phoneNumber || undefined,
-      });
+      }).catch(console.error);
       
-      // AuthContext session handles the rest
-      window.location.href = "/account";
+      // Let the useEffect handle the redirect!
     } catch (err: any) {
       setError(err.message || "Google Sign-In failed.");
-    } finally {
       setLoading(false);
-    }
+    } 
   };
 
   const handleCreateProfile = async (e: React.FormEvent) => {
@@ -175,8 +177,9 @@ export default function LoginPage() {
 
   if (authLoading) {
     return (
-      <div className={styles.container} style={{ color: 'black', fontSize: '2rem', fontWeight: 'bold' }}>
-        LOADING AUTHENTICATION...
+      <div className={styles.loadingWrapper}>
+        <div className={styles.spinner}></div>
+        <div className={styles.loadingText}>Securing Connection</div>
       </div>
     );
   }
@@ -203,7 +206,7 @@ export default function LoginPage() {
               <input 
                 type="tel" 
                 className={styles.input} 
-                placeholder="+1 234 567 8900" 
+                placeholder="98765 43210" 
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 disabled={loading}
