@@ -2,12 +2,14 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
-import { doc, onSnapshot, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase/config";
+import { auth } from "@/lib/firebase/config";
+import { getUserProfile } from "@/app/actions/auth";
 
 interface UserProfile {
-  name: string;
-  phone: string;
+  name?: string;
+  displayName?: string;
+  phone?: string;
+  email?: string;
   role?: string;
   createdAt?: any;
 }
@@ -41,26 +43,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         
-        // Listen to profile changes in Firestore
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        const unsubscribeDoc = onSnapshot(
-          userDocRef, 
-          (docSnap) => {
-            if (docSnap.exists()) {
-              setProfile(docSnap.data() as UserProfile);
-            } else {
-              setProfile(null);
-            }
-            setLoading(false);
-          },
-          (error) => {
-            console.error("Firestore Error in AuthContext:", error);
+        // Fetch profile from Postgres via Server Action
+        const fetchProfile = async () => {
+          const res = await getUserProfile(firebaseUser.uid);
+          if (res.success && res.profile) {
+            setProfile(res.profile as UserProfile);
+          } else {
             setProfile(null);
-            setLoading(false);
           }
-        );
+          setLoading(false);
+        };
+        fetchProfile();
 
-        return () => unsubscribeDoc();
+        return () => {};
       } else {
         setUser(null);
         setProfile(null);

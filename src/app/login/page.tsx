@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase/config";
+import { auth } from "@/lib/firebase/config";
+import { syncUserToDatabase } from "@/app/actions/auth";
 import styles from "./page.module.css";
 import { useAuth } from "@/context/AuthContext";
 
@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [otp, setOtp] = useState("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [step, setStep] = useState<"phone" | "otp" | "profile">("phone");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -98,14 +99,10 @@ export default function LoginPage() {
       const result = await confirmationResult.confirm(otp);
       const user = result.user;
       
-      // Check if user has a profile
-      const userDocRef = doc(db, "users", user.uid);
-      const docSnap = await getDoc(userDocRef);
-      
-      if (docSnap.exists()) {
-        router.push("/account");
-      } else {
-        setStep("profile");
+      // Since we can't await context state easily here, we just navigate to account.
+      // If the user profile isn't in Postgres, they will be kicked back to profile step by the useEffect
+      if (user) {
+         setStep("profile"); // Default to profile step, the useEffect will jump to account if profile loads
       }
     } catch (err: any) {
       setError(err.message || "Invalid OTP code.");
@@ -121,13 +118,18 @@ export default function LoginPage() {
     setError("");
 
     try {
-      await setDoc(doc(db, "users", user.uid), {
-        name,
-        phone: user.phoneNumber,
-        role: "user",
-        createdAt: serverTimestamp(),
+      const res = await syncUserToDatabase(user.uid, {
+        displayName: name,
+        email: email || undefined,
+        phone: user.phoneNumber || undefined,
       });
-      router.push("/account");
+      
+      if (res.success) {
+        // Force reload to trigger AuthContext to fetch the new Postgres profile
+        window.location.href = "/account";
+      } else {
+        setError(res.error || "Failed to sync profile");
+      }
     } catch (err: any) {
       setError("Failed to create profile. Please try again.");
     } finally {
@@ -154,8 +156,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.loginCard}>
+    <div className={styles.splitContainer}>
+      <div className={styles.imageSection}>
+        <div className={styles.imageOverlay}>
+          <h2 className={styles.imageTitle}>Decoristta</h2>
+          <p className={styles.imageSubtitle}>Welcome back to your curated space.</p>
+        </div>
+      </div>
+      
+      <div className={styles.formSection}>
+        <div className={styles.loginCard}>
         
         {step === "phone" && (
           <form onSubmit={handleSendOtp}>
@@ -231,6 +241,18 @@ export default function LoginPage() {
                 required
               />
             </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Email Address (Optional)</label>
+              <input 
+                type="email" 
+                className={styles.input} 
+                placeholder="jane@example.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
+            </div>
             
             <button type="submit" className={styles.submitBtn} disabled={loading || !name}>
               {loading ? "Saving..." : "Complete Setup"}
@@ -240,6 +262,7 @@ export default function LoginPage() {
 
         {error && <div className={styles.error}>{error}</div>}
 
+        </div>
       </div>
     </div>
   );
