@@ -212,12 +212,95 @@
   cursor: pointer;
 }
 
+/* New Address Book Styles */
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.addBtnSmall {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--color-text-dark);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.addBtnSmall:hover {
+  opacity: 0.8;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.addressForm {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.formActions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.errorText {
+  color: #d9534f;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  text-align: right;
+}
+
+.addressDetails {
+  flex: 1;
+}
+
+.addressLinePrimary {
+  font-weight: 600;
+  color: var(--color-text-dark);
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.addressLineSecondary {
+  color: #666;
+  margin: 0 0 0.25rem 0;
+  font-size: 0.95rem;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 3rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+  color: #666;
+  border: 1px dashed #ccc;
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 768px) {
   .layout {
     grid-template-columns: 1fr;
     gap: 2rem;
   }
   .addressList {
+    grid-template-columns: 1fr;
+  }
+  .formGrid {
     grid-template-columns: 1fr;
   }
 }
