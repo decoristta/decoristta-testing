@@ -40,6 +40,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       clearTimeout(fallbackTimer);
+      
+      // If we detect an auth change (like a login), instantly flag as loading
+      // so the UI knows we are fetching the Postgres profile and doesn't blink!
+      setLoading(true); 
       setUser(firebaseUser);
       
       if (firebaseUser) {
