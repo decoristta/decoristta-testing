@@ -127,16 +127,20 @@ export default function AccountPage() {
               <div className={styles.profileDetails}>
                 <div className={styles.detailRow}>
                   <span className={styles.label}>Full Name</span>
-                  <span className={styles.value}>{profile.name}</span>
+                  <span className={styles.value}>{profile.displayName || profile.name}</span>
                 </div>
                 <div className={styles.detailRow}>
                   <span className={styles.label}>Phone Number</span>
                   <span className={styles.value}>{profile.phone}</span>
                 </div>
                 <div className={styles.detailRow}>
+                  <span className={styles.label}>Email</span>
+                  <span className={styles.value}>{profile.email || "Not provided"}</span>
+                </div>
+                <div className={styles.detailRow}>
                   <span className={styles.label}>Member Since</span>
                   <span className={styles.value}>
-                    {profile.createdAt?.toDate().toLocaleDateString() || "Recently"}
+                    {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "Recently"}
                   </span>
                 </div>
               </div>
