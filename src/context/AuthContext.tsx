@@ -47,8 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(firebaseUser);
       
       if (firebaseUser) {
-        // Set secure server session cookie for middleware
-        await setSession(firebaseUser.uid);
+        // Fetch JWT ID Token
+        const idToken = await firebaseUser.getIdToken();
+        
+        // Set secure cryptographically signed server session cookie
+        await setSession(idToken);
         
         // Fetch profile from Postgres via Server Action
         const res = await getUserProfile(firebaseUser.uid);

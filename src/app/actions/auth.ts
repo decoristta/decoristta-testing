@@ -5,14 +5,25 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 
-export async function setSession(uid: string) {
-  const cookieStore = await cookies();
-  cookieStore.set("session", uid, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7, // 1 week
-    path: "/",
-  });
+import { adminAuth } from "@/lib/firebase/admin";
+
+export async function setSession(idToken: string) {
+  try {
+    const expiresIn = 60 * 60 * 24 * 7 * 1000; // 1 week in milliseconds
+    const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
+    
+    const cookieStore = await cookies();
+    cookieStore.set("session", sessionCookie, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: expiresIn / 1000,
+      path: "/",
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.error("Session creation error:", error);
+    return { success: false, error: error.message };
+  }
 }
 
 export async function clearSession() {
@@ -65,6 +76,19 @@ export async function getUserProfile(firebaseUid: string) {
     return { success: true, profile: null };
   } catch (error: any) {
     console.error("Fetch Profile Error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Updates a user's phone number securely in Postgres
+ */
+export async function updateUserPhone(firebaseUid: string, newPhone: string) {
+  try {
+    await db.update(users).set({ phone: newPhone, updatedAt: new Date() }).where(eq(users.firebaseUid, firebaseUid));
+    return { success: true };
+  } catch (error: any) {
+    console.error("Update Phone Error:", error);
     return { success: false, error: error.message };
   }
 }

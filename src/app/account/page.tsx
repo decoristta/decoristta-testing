@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signOut } from "firebase/auth";
+import { signOut, RecaptchaVerifier, PhoneAuthProvider, updatePhoneNumber } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import { getUserAddresses, addAddress, updateAddress, deleteAddress } from "@/app/actions/addresses";
+import { updateUserPhone } from "@/app/actions/auth";
 import styles from "./page.module.css";
 import { useAuth } from "@/context/AuthContext";
 import { Plus, Edit2, Trash2 } from "lucide-react";
@@ -38,6 +39,14 @@ export default function AccountPage() {
   });
   const [addressError, setAddressError] = useState("");
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
+
+  // Phone Update State
+  const [isChangingPhone, setIsChangingPhone] = useState(false);
+  const [newPhone, setNewPhone] = useState("");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [phoneVerificationId, setPhoneVerificationId] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [isPhoneUpdating, setIsPhoneUpdating] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -90,6 +99,65 @@ export default function AccountPage() {
   const handleLogout = async () => {
     await signOut(auth);
     router.push("/");
+  };
+
+  const handleSendPhoneOtp = async () => {
+    if (!newPhone || !auth.currentUser) return;
+    setIsPhoneUpdating(true);
+    setPhoneError("");
+    
+    try {
+      let cleaned = newPhone.replace(/[^0-9+]/g, '');
+      const formattedPhone = cleaned.startsWith('+') ? cleaned : `+91${cleaned}`;
+      
+      // We must clear old recaptcha instance if any
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear(); } catch(e) {}
+        window.recaptchaVerifier = undefined;
+      }
+      
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'phone-recaptcha', {
+        'size': 'invisible'
+      });
+      await window.recaptchaVerifier.render();
+
+      const provider = new PhoneAuthProvider(auth);
+      const verificationId = await provider.verifyPhoneNumber(formattedPhone, window.recaptchaVerifier);
+      setPhoneVerificationId(verificationId);
+    } catch (err: any) {
+      console.error(err);
+      setPhoneError(err.message || "Failed to send OTP.");
+    } finally {
+      setIsPhoneUpdating(false);
+    }
+  };
+
+  const handleVerifyPhoneOtp = async () => {
+    if (!phoneOtp || !phoneVerificationId || !auth.currentUser) return;
+    setIsPhoneUpdating(true);
+    setPhoneError("");
+
+    try {
+      const credential = PhoneAuthProvider.credential(phoneVerificationId, phoneOtp);
+      await updatePhoneNumber(auth.currentUser, credential);
+      
+      // Update Postgres
+      let cleaned = newPhone.replace(/[^0-9+]/g, '');
+      const formattedPhone = cleaned.startsWith('+') ? cleaned : `+91${cleaned}`;
+      await updateUserPhone(auth.currentUser.uid, formattedPhone);
+      
+      // Success
+      setIsChangingPhone(false);
+      setNewPhone("");
+      setPhoneOtp("");
+      setPhoneVerificationId("");
+      window.location.reload(); // Reload to refresh AuthContext
+    } catch (err: any) {
+      console.error(err);
+      setPhoneError(err.message || "Invalid OTP code.");
+    } finally {
+      setIsPhoneUpdating(false);
+    }
   };
 
   const handleSaveAddress = async (e: React.FormEvent) => {
@@ -183,8 +251,68 @@ export default function AccountPage() {
                 </div>
                 <div className={styles.detailRow}>
                   <span className={styles.label}>Phone Number</span>
-                  <span className={styles.value}>{profile.phone}</span>
+                  <span className={styles.value}>
+                    {profile.phone}
+                    <button 
+                      onClick={() => setIsChangingPhone(!isChangingPhone)} 
+                      style={{ marginLeft: '1rem', color: 'var(--color-gold)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
+                    >
+                      {isChangingPhone ? 'Cancel' : 'Change'}
+                    </button>
+                  </span>
                 </div>
+                
+                {isChangingPhone && (
+                  <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eaeaea' }}>
+                    <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: '#333' }}>Update Mobile Number</h4>
+                    
+                    {!phoneVerificationId ? (
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <input 
+                          type="tel" 
+                          placeholder="New 10-digit number"
+                          className={styles.input}
+                          value={newPhone}
+                          onChange={e => setNewPhone(e.target.value)}
+                          disabled={isPhoneUpdating}
+                          style={{ flex: 1, margin: 0 }}
+                        />
+                        <button 
+                          className={styles.submitBtn} 
+                          onClick={handleSendPhoneOtp}
+                          disabled={isPhoneUpdating || !newPhone}
+                          style={{ margin: 0, padding: '0.75rem 1rem', width: 'auto' }}
+                        >
+                          {isPhoneUpdating ? 'Wait...' : 'Send OTP'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <input 
+                          type="text" 
+                          placeholder="6-digit OTP"
+                          className={styles.input}
+                          value={phoneOtp}
+                          onChange={e => setPhoneOtp(e.target.value)}
+                          maxLength={6}
+                          disabled={isPhoneUpdating}
+                          style={{ flex: 1, margin: 0 }}
+                        />
+                        <button 
+                          className={styles.submitBtn} 
+                          onClick={handleVerifyPhoneOtp}
+                          disabled={isPhoneUpdating || phoneOtp.length < 6}
+                          style={{ margin: 0, padding: '0.75rem 1rem', width: 'auto' }}
+                        >
+                          {isPhoneUpdating ? 'Verifying...' : 'Verify'}
+                        </button>
+                      </div>
+                    )}
+                    {phoneError && <p style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.5rem' }}>{phoneError}</p>}
+                    <div id="phone-recaptcha"></div>
+                  </div>
+                )}
+                
                 <div className={styles.detailRow}>
                   <span className={styles.label}>Email</span>
                   <span className={styles.value}>{profile.email || "Not provided"}</span>

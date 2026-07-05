@@ -17,6 +17,29 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  // Persist cooldown across page refreshes
+  useEffect(() => {
+    const savedCooldownTime = localStorage.getItem("otpCooldownTime");
+    if (savedCooldownTime) {
+      const targetTime = parseInt(savedCooldownTime, 10);
+      const now = Date.now();
+      if (targetTime > now) {
+        setCooldown(Math.ceil((targetTime - now) / 1000));
+      } else {
+        localStorage.removeItem("otpCooldownTime");
+      }
+    }
+  }, []);
+
+  // Tick down cooldown timer
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
@@ -69,9 +92,11 @@ export default function LoginPage() {
     }
   }, [authLoading, step]);
 
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!phoneNumber) return;
+    if (cooldown > 0) return; // Strict rate limiting
+    
     setLoading(true);
     setError("");
 
@@ -84,6 +109,10 @@ export default function LoginPage() {
       const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
       setConfirmationResult(confirmation);
       setStep("otp");
+      
+      // Start 60-second cooldown timer
+      setCooldown(60);
+      localStorage.setItem("otpCooldownTime", (Date.now() + 60000).toString());
     } catch (err: any) {
       setError(err.message || "Failed to send OTP. Please check the number.");
       // We do not reset recaptcha here anymore because it often crashes in React.
@@ -214,8 +243,8 @@ export default function LoginPage() {
               />
             </div>
             
-            <button type="submit" className={styles.submitBtn} disabled={loading || !phoneNumber}>
-              {loading ? "Sending..." : "Continue"}
+            <button type="submit" className={styles.submitBtn} disabled={loading || !phoneNumber || cooldown > 0}>
+              {cooldown > 0 ? `Wait ${cooldown}s` : (loading ? "Sending..." : "Continue")}
             </button>
 
             <div className={styles.divider}>
@@ -263,13 +292,29 @@ export default function LoginPage() {
             <button type="submit" className={styles.submitBtn} disabled={loading || otp.length < 6}>
               {loading ? "Verifying..." : "Sign In"}
             </button>
-            <button 
-              type="button" 
-              onClick={() => setStep("phone")} 
-              style={{ background: 'none', border: 'none', marginTop: '1rem', color: '#666', cursor: 'pointer', fontSize: '0.85rem' }}
-            >
-              Change phone number
-            </button>
+            
+            <div style={{ marginTop: '1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+              {cooldown > 0 ? (
+                <p style={{ color: '#666', fontSize: '0.9rem', margin: 0 }}>Resend OTP in {cooldown}s</p>
+              ) : (
+                <button 
+                  type="button" 
+                  onClick={() => handleSendOtp()} 
+                  disabled={loading}
+                  style={{ background: 'none', border: 'none', color: 'var(--color-gold)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '500', padding: 0 }}
+                >
+                  Resend OTP
+                </button>
+              )}
+              
+              <button 
+                type="button" 
+                onClick={() => setStep("phone")} 
+                style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '0.85rem', padding: 0 }}
+              >
+                Change phone number
+              </button>
+            </div>
           </form>
         )}
 
