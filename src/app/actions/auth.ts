@@ -5,10 +5,13 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 
-import { adminAuth } from "@/lib/firebase/admin";
+// We dynamically import adminAuth inside the action to prevent SSR/Edge runtime crashes
 
 export async function setSession(idToken: string) {
   try {
+    const { adminAuth } = await import("@/lib/firebase/admin");
+    if (!adminAuth) throw new Error("Firebase Admin not initialized");
+    
     const expiresIn = 60 * 60 * 24 * 7 * 1000; // 1 week in milliseconds
     const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
     
