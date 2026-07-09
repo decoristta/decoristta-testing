@@ -53,8 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Set secure cryptographically signed server session cookie
         await setSession(idToken);
         
-        // Fetch profile from Postgres via Server Action
-        const res = await getUserProfile(firebaseUser.uid);
+        // Fetch profile from Postgres via Server Action (uid comes from the verified session cookie)
+        const res = await getUserProfile();
         if (res.success && res.profile) {
           setProfile(res.profile as UserProfile);
         } else {

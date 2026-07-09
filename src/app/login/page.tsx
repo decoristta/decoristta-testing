@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
-import { syncUserToDatabase } from "@/app/actions/auth";
+import { completeProfile } from "@/app/actions/auth";
 import styles from "./page.module.css";
 import { useAuth } from "@/context/AuthContext";
 
@@ -129,18 +129,10 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const result = await confirmationResult.confirm(otp);
-      const user = result.user;
-      
-      if (user) {
-         // Failsafe DB Sync: Fire and forget (don't await) so it's lightning fast!
-         syncUserToDatabase(user.uid, {
-           displayName: "",
-           phone: user.phoneNumber || undefined,
-         }).catch(console.error);
-         
-         // Let the useEffect at the top handle the redirect cleanly
-      }
+      await confirmationResult.confirm(otp);
+      // The Postgres user row is synced server-side inside setSession() as soon as
+      // AuthContext picks up the new auth state -- let the useEffect at the top
+      // handle the redirect once that completes.
     } catch (err: any) {
       setError(err.message || "Invalid OTP code.");
       setLoading(false);
@@ -152,16 +144,9 @@ export default function LoginPage() {
     setError("");
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      
-      // Failsafe DB Sync: Fire and forget!
-      syncUserToDatabase(result.user.uid, {
-        displayName: result.user.displayName || "User",
-        email: result.user.email || undefined,
-        phone: result.user.phoneNumber || undefined,
-      }).catch(console.error);
-      
-      // Let the useEffect handle the redirect!
+      await signInWithPopup(auth, provider);
+      // Postgres sync happens server-side inside setSession(); let the useEffect
+      // handle the redirect once AuthContext picks up the new auth state.
     } catch (err: any) {
       setError(err.message || "Google Sign-In failed.");
       setLoading(false);
@@ -175,12 +160,11 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const res = await syncUserToDatabase(user.uid, {
+      const res = await completeProfile({
         displayName: name,
         email: email || undefined,
-        phone: user.phoneNumber || undefined,
       });
-      
+
       if (res.success) {
         // Force reload to trigger AuthContext to fetch the new Postgres profile
         window.location.href = "/account";
@@ -193,16 +177,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    // Failsafe: if auth takes more than 3 seconds, force loading to false
-    const timer = setTimeout(() => {
-      if (authLoading) {
-        console.warn("Auth loading timed out. Forcing UI to render.");
-      }
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [authLoading]);
 
   if (authLoading) {
     return (

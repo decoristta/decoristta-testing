@@ -57,7 +57,7 @@ export default function AccountPage() {
   const fetchAddresses = async () => {
     if (user) {
       setIsLoadingAddresses(true);
-      const res = await getUserAddresses(user.uid);
+      const res = await getUserAddresses();
       if (res.success && res.addresses) {
         setAddresses(res.addresses as Address[]);
       }
@@ -144,7 +144,7 @@ export default function AccountPage() {
       // Update Postgres
       let cleaned = newPhone.replace(/[^0-9+]/g, '');
       const formattedPhone = cleaned.startsWith('+') ? cleaned : `+91${cleaned}`;
-      await updateUserPhone(auth.currentUser.uid, formattedPhone);
+      await updateUserPhone(formattedPhone);
       
       // Success
       setIsChangingPhone(false);
@@ -174,9 +174,9 @@ export default function AccountPage() {
     try {
       let res;
       if (editAddressData.id) {
-        res = await updateAddress(user.uid, editAddressData.id, editAddressData as any);
+        res = await updateAddress(editAddressData.id, editAddressData as any);
       } else {
-        res = await addAddress(user.uid, editAddressData as any);
+        res = await addAddress(editAddressData as any);
       }
       
       if (res.success) {
@@ -195,7 +195,7 @@ export default function AccountPage() {
   const handleDeleteAddress = async (id: string) => {
     if (!user) return;
     try {
-      const res = await deleteAddress(user.uid, id);
+      const res = await deleteAddress(id);
       if (res.success) {
         fetchAddresses();
       }
