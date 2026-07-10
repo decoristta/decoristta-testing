@@ -1,87 +1,90 @@
 "use client";
 
 import { useState } from 'react';
-import { Filter, LayoutGrid, List, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+  Filter, List, ChevronDown, ChevronLeft, ChevronRight, 
+  LayoutGrid, Flower2, Lamp, FlameKindling, Diamond, Gem
+} from 'lucide-react';
 import ProductCard, { Product } from './ProductCard';
 import styles from './AllProducts.module.css';
 
 interface AllProductsProps {
   products: Product[];
   categories: string[];
+  initialCategory?: string;
 }
 
-export default function AllProducts({ products, categories }: AllProductsProps) {
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [view, setView] = useState<'grid' | 'list'>('grid');
+export default function AllProducts({ products, categories, initialCategory = 'All' }: AllProductsProps) {
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredProducts = activeCategory === 'All' 
     ? products 
     : products.filter(p => p.category === activeCategory);
 
-  // Pagination mock logic
+  // Reset page when category changes
+  const handleCategoryChange = (cat: string) => {
+    setActiveCategory(cat);
+    setCurrentPage(1);
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category.toLowerCase()) {
+      case 'vases': return <Flower2 size={16} strokeWidth={1.5} />;
+      case 'decor': return <Gem size={16} strokeWidth={1.5} />;
+      case 'lighting':
+      case 'lamps': return <Lamp size={16} strokeWidth={1.5} />;
+      case 'candle holders':
+      case 'candle stands': return <FlameKindling size={16} strokeWidth={1.5} />;
+      case 'showpieces': return <Diamond size={16} strokeWidth={1.5} />;
+      case 'clocks': return <LayoutGrid size={16} strokeWidth={1.5} />;
+      case 'all': return <LayoutGrid size={16} strokeWidth={1.5} />;
+      default: return <Gem size={16} strokeWidth={1.5} />;
+    }
+  };
+
+  // Pagination logic
   const itemsPerPage = 12;
   const totalResults = filteredProducts.length;
-  // Just show first 12 for the demo if there are more
-  const displayedProducts = filteredProducts.slice(0, itemsPerPage);
+  const totalPages = Math.ceil(totalResults / itemsPerPage);
+  
+  const displayedProducts = filteredProducts.slice(
+    (currentPage - 1) * itemsPerPage, 
+    currentPage * itemsPerPage
+  );
 
   return (
     <section className={styles.section}>
       <div className={styles.container}>
         <div className={styles.header}>
-          <div className={styles.headerLeft}>
-            <h2>All Products</h2>
-            <p>Considered pieces for the home you're building, one room at a time.</p>
-          </div>
           <div className={styles.headerRight}>
-            Showing 1-{Math.min(itemsPerPage, totalResults)} of {totalResults} results
+            Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalResults)} of {totalResults} results
           </div>
         </div>
 
         <div className={styles.toolbar}>
           <div className={styles.toolbarLeft}>
-            <button className={styles.filterBtn}>
-              <Filter size={16} /> Filters
-            </button>
             <div className={styles.categories}>
               <button 
                 className={`${styles.categoryPill} ${activeCategory === 'All' ? styles.active : ''}`}
-                onClick={() => setActiveCategory('All')}
+                onClick={() => handleCategoryChange('All')}
               >
-                All
+                {getCategoryIcon('All')} <span>All</span>
               </button>
               {categories.map(cat => (
                 <button 
                   key={cat}
                   className={`${styles.categoryPill} ${activeCategory === cat ? styles.active : ''}`}
-                  onClick={() => setActiveCategory(cat)}
+                  onClick={() => handleCategoryChange(cat)}
                 >
-                  {cat}
+                  {getCategoryIcon(cat)} <span>{cat}</span>
                 </button>
               ))}
             </div>
           </div>
 
           <div className={styles.toolbarRight}>
-            <div className={styles.sortContainer}>
-              Sort by:
-              <button className={styles.sortSelect}>
-                Featured <ChevronDown size={14} />
-              </button>
-            </div>
-            <div className={styles.viewToggles}>
-              <button 
-                className={`${styles.viewBtn} ${view === 'grid' ? styles.active : ''}`}
-                onClick={() => setView('grid')}
-              >
-                <LayoutGrid size={16} />
-              </button>
-              <button 
-                className={`${styles.viewBtn} ${view === 'list' ? styles.active : ''}`}
-                onClick={() => setView('list')}
-              >
-                <List size={16} />
-              </button>
-            </div>
+            {/* Sort and view toggles removed as requested */}
           </div>
         </div>
 
@@ -91,17 +94,31 @@ export default function AllProducts({ products, categories }: AllProductsProps) 
           ))}
         </div>
 
-        {totalResults > itemsPerPage && (
+        {totalPages > 1 && (
           <div className={styles.pagination}>
-            <button className={styles.pageBtn} disabled>
+            <button 
+              className={styles.pageBtn} 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            >
               <ChevronLeft size={18} />
             </button>
-            <span className={`${styles.pageNumber} ${styles.active}`}>1</span>
-            <span className={styles.pageNumber}>2</span>
-            <span className={styles.pageNumber}>3</span>
-            <span className={styles.ellipsis}>...</span>
-            <span className={styles.pageNumber}>{Math.ceil(totalResults / itemsPerPage)}</span>
-            <button className={styles.pageBtn}>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button 
+                key={page}
+                className={`${styles.pageNumber} ${currentPage === page ? styles.active : ''}`}
+                onClick={() => setCurrentPage(page)}
+              >
+                {page}
+              </button>
+            ))}
+
+            <button 
+              className={styles.pageBtn} 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            >
               <ChevronRight size={18} />
             </button>
           </div>

@@ -89,6 +89,9 @@
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .categoryPill:hover {
@@ -168,6 +171,9 @@
 }
 
 @media (max-width: 768px) {
+  .section {
+    padding: 3rem 1rem;
+  }
   .header {
     flex-direction: column;
     align-items: flex-start;
@@ -179,14 +185,10 @@
   }
   .grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
   }
 }
 
-@media (max-width: 480px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
 
 .pagination {
   display: flex;

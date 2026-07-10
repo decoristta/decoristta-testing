@@ -17,11 +17,11 @@ export default function Footer() {
         <div className={styles.linkCol}>
           <h3>Shop</h3>
           <ul>
-            <li><Link href="#">Showpieces</Link></li>
-            <li><Link href="#">Lamps</Link></li>
-            <li><Link href="#">Vases</Link></li>
-            <li><Link href="#">Clocks</Link></li>
-            <li><Link href="#">Candle Stands</Link></li>
+            <li><Link href="/category/Showpieces">Showpieces</Link></li>
+            <li><Link href="/category/Lamps">Lamps</Link></li>
+            <li><Link href="/category/Vases">Vases</Link></li>
+            <li><Link href="/category/Clocks">Clocks</Link></li>
+            <li><Link href="/category/Candle%20Holders">Candle Holders</Link></li>
           </ul>
         </div>
 
@@ -30,7 +30,6 @@ export default function Footer() {
           <h3>Company</h3>
           <ul>
             <li><Link href="#">About us</Link></li>
-            <li><Link href="#">Journal</Link></li>
             <li><Link href="#">Careers</Link></li>
             <li><Link href="#">Press</Link></li>
           </ul>
@@ -40,7 +39,7 @@ export default function Footer() {
         <div className={styles.linkCol}>
           <h3>Support</h3>
           <ul>
-            <li><Link href="#">Contact</Link></li>
+            <li><Link href="/contact">Contact</Link></li>
             <li><Link href="/shipping-policy">Shipping Policy</Link></li>
             <li><Link href="/returns-policy">Returns & Refunds</Link></li>
             <li><Link href="#">FAQs</Link></li>

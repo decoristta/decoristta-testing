@@ -45,8 +45,15 @@ export const products = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
+  seoTitle: varchar('seo_title', { length: 255 }),
+  color: varchar('color', { length: 100 }),
+  dimensions: varchar('dimensions', { length: 255 }),
+  material: varchar('material', { length: 255 }),
+  countryOfOrigin: varchar('country_of_origin', { length: 100 }),
   category: varchar('category', { length: 100 }).notNull(),
-  price: numeric('price', { precision: 10, scale: 2 }).notNull(),
+  price: numeric('price', { precision: 10, scale: 2 }).notNull(), // Launch Price
+  mrp: numeric('mrp', { precision: 10, scale: 2 }), // Maximum Retail Price
+  customerSaves: numeric('customer_saves', { precision: 10, scale: 2 }),
   isActive: boolean('is_active').default(true).notNull(),
   averageRating: numeric('average_rating', { precision: 3, scale: 2 }).default('0.00'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

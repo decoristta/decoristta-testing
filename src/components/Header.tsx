@@ -1,12 +1,15 @@
 "use client";
 
 import Link from 'next/link';
-import { Search, Heart, User, ShoppingBag } from 'lucide-react';
+import Image from 'next/image';
+import { Search, Heart, User, ShoppingBag, Menu, X } from 'lucide-react';
+import { useState } from 'react';
 import styles from './Header.module.css';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function Header() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, openAuthModal } = useAuth();
   const router = useRouter();
 
@@ -20,16 +23,27 @@ export default function Header() {
 
   return (
     <header className={styles.header}>
-      <Link href="/" className={styles.logo}>
-        Decoristta
-      </Link>
+      <div className={styles.leftSection}>
+        <button 
+          className={styles.hamburgerBtn} 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle mobile menu"
+        >
+          {isMobileMenuOpen ? <X size={24} strokeWidth={1.5} /> : <Menu size={24} strokeWidth={1.5} />}
+        </button>
+        <Link href="/" className={styles.logo}>
+          <Image src="/images/logo.png" alt="Decoristta Logo" width={80} height={80} style={{ objectFit: 'contain' }} priority />
+        </Link>
+      </div>
 
       <nav className={styles.nav}>
-        <Link href="/" className={`${styles.navLink} ${styles.active}`}>Shop</Link>
-        <Link href="#" className={styles.navLink}>Collections</Link>
-        <Link href="#" className={styles.navLink}>About</Link>
-        <Link href="#" className={styles.navLink}>Journal</Link>
-        <Link href="#" className={styles.navLink}>Contact</Link>
+        <Link href="/" className={styles.navLink}>New In</Link>
+        <Link href="/category/Vases" className={styles.navLink}>Vases</Link>
+        <Link href="/category/Decor" className={styles.navLink}>Decor</Link>
+        <Link href="/category/Lighting" className={styles.navLink}>Lighting</Link>
+        <Link href="/category/Candle Holders" className={styles.navLink}>Candles</Link>
+        <Link href="/category/Showpieces" className={styles.navLink}>Showpieces</Link>
+        <Link href="/about" className={styles.navLink}>About</Link>
       </nav>
 
       <div className={styles.icons}>
@@ -48,6 +62,18 @@ export default function Header() {
           <span className={styles.badge}>0</span>
         </button>
       </div>
+
+      {isMobileMenuOpen && (
+        <nav className={styles.mobileNav}>
+          <Link href="/" className={styles.mobileNavLink} onClick={() => setIsMobileMenuOpen(false)}>New In</Link>
+          <Link href="/category/Vases" className={styles.mobileNavLink} onClick={() => setIsMobileMenuOpen(false)}>Vases</Link>
+          <Link href="/category/Decor" className={styles.mobileNavLink} onClick={() => setIsMobileMenuOpen(false)}>Decor</Link>
+          <Link href="/category/Lighting" className={styles.mobileNavLink} onClick={() => setIsMobileMenuOpen(false)}>Lighting</Link>
+          <Link href="/category/Candle Holders" className={styles.mobileNavLink} onClick={() => setIsMobileMenuOpen(false)}>Candles</Link>
+          <Link href="/category/Showpieces" className={styles.mobileNavLink} onClick={() => setIsMobileMenuOpen(false)}>Showpieces</Link>
+          <Link href="/about" className={styles.mobileNavLink} onClick={() => setIsMobileMenuOpen(false)}>About</Link>
+        </nav>
+      )}
     </header>
   );
 }

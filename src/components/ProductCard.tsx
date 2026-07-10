@@ -12,6 +12,13 @@ export interface Product {
   price: number;
   oldPrice?: number;
   discount?: number;
+  description?: string | null;
+  dimensions?: string | null;
+  material?: string | null;
+  color?: string | null;
+  origin?: string | null;
+  customerSaves?: number;
+  images?: string[];
 }
 
 interface ProductCardProps {
@@ -69,10 +76,20 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         <div className={styles.priceContainer}>
           {product.oldPrice && (
-            <span className={styles.oldPrice}>${product.oldPrice.toLocaleString()}</span>
+            <span className={styles.oldPrice}>₹{product.oldPrice.toLocaleString()}</span>
           )}
-          <span className={styles.price}>${product.price.toLocaleString()}</span>
+          <span className={styles.price}>₹{product.price.toLocaleString()}</span>
         </div>
+        
+        <button 
+          className={styles.addToCartBtn}
+          onClick={(e) => {
+            e.preventDefault();
+            alert('Added to cart!');
+          }}
+        >
+          Add to Cart
+        </button>
       </div>
     </Link>
   );
