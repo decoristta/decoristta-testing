@@ -219,3 +219,55 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
+
+/* OTP 4-Box Design */
+.otpContainer {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.otpBox {
+  width: 3.5rem;
+  height: 4rem;
+  font-size: 1.5rem;
+  text-align: center;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fafafa;
+  transition: all 0.2s ease;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--color-text-dark);
+}
+
+.otpBox:focus {
+  outline: none;
+  border-color: var(--color-gold);
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+}
+
+.otpBox:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Captcha Pop-up Design */
+.captchaPopup {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  padding: 1rem;
+  margin: 1.5rem auto;
+  border: 1px solid #eee;
+  display: flex;
+  justify-content: center;
+  min-height: 78px;
+}
+
+/* Form Container for Animations */
+.formContentWrapper {
+  width: 100%;
+}

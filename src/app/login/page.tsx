@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { verifyWidgetToken, completeProfile } from "@/app/actions/auth";
 import styles from "./page.module.css";
 import { useAuth } from "@/context/AuthContext";
+import { motion, AnimatePresence } from "framer-motion";
 
 const WIDGET_SCRIPT_URLS = [
   "https://verify.msg91.com/otp-provider.js",
@@ -17,11 +18,15 @@ const widgetScriptState: { status: "idle" | "loading" | "ready"; onReady: Array<
   onReady: [],
 };
 
-
+const pageVariants = {
+  initial: { opacity: 0, x: 20 },
+  in: { opacity: 1, x: 0 },
+  out: { opacity: 0, x: -20 }
+};
 
 export default function LoginPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [otp, setOtp] = useState("");
+  const [otpArray, setOtpArray] = useState<string[]>(["", "", "", ""]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   
@@ -31,6 +36,7 @@ export default function LoginPage() {
   const [cooldown, setCooldown] = useState(0);
   const [widgetReady, setWidgetReady] = useState(false);
 
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
   const { user, loading: authLoading, refresh } = useAuth();
 
@@ -154,7 +160,8 @@ export default function LoginPage() {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otp || !window.verifyOtp || loading) return;
+    const otp = otpArray.join('');
+    if (otp.length < 4 || !window.verifyOtp || loading) return;
     
     setLoading(true);
     setError("");
@@ -236,6 +243,26 @@ export default function LoginPage() {
     }
   };
 
+  const handleOtpChange = (index: number, value: string) => {
+    const val = value.replace(/[^0-9]/g, "");
+    if (!val && value !== "") return;
+    
+    const newOtp = [...otpArray];
+    newOtp[index] = val.substring(val.length - 1);
+    setOtpArray(newOtp);
+
+    // Auto-advance
+    if (val && index < 3) {
+      otpRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otpArray[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
   if (authLoading) {
     return (
       <div className={styles.loadingWrapper}>
@@ -256,126 +283,172 @@ export default function LoginPage() {
 
       <div className={styles.formSection}>
         <div className={styles.loginCard}>
-          {/* Captcha container, only visible during phone step and styled minimally */}
-          <div 
-            id="msg91-captcha" 
-            style={{ 
-              display: step === "phone" ? "flex" : "none",
-              justifyContent: "center",
-              marginBottom: "1.5rem",
-              minHeight: "78px", // typical hCaptcha height to prevent layout shift
-            }}
-          ></div>
+          <AnimatePresence mode="wait">
+            {step === "phone" && (
+              <motion.div
+                key="phone"
+                initial="initial"
+                animate="in"
+                exit="out"
+                variants={pageVariants}
+                transition={{ type: "tween", ease: "anticipate", duration: 0.4 }}
+                className={styles.formContentWrapper}
+              >
+                <form onSubmit={handleSendOtp}>
+                  <h1 className={styles.title}>Welcome</h1>
+                  <p className={styles.subtitle}>Enter your mobile number to securely sign in or create an account.</p>
 
-          {step === "phone" && (
-            <form onSubmit={handleSendOtp}>
-              <h1 className={styles.title}>Welcome</h1>
-              <p className={styles.subtitle}>Enter your mobile number to securely sign in or create an account.</p>
-
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Mobile Number</label>
-                <input
-                  type="tel"
-                  className={styles.input}
-                  placeholder="98765 43210"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  disabled={loading}
-                  required
-                />
-              </div>
-
-              <button type="submit" className={styles.submitBtn} disabled={loading || !phoneNumber || cooldown > 0 || !widgetReady}>
-                {cooldown > 0 ? `Wait ${cooldown}s` : (loading ? "Sending Code..." : "Continue")}
-              </button>
-            </form>
-          )}
-
-          {step === "otp" && (
-            <form onSubmit={handleVerifyOtp}>
-              <h1 className={styles.title}>Verify</h1>
-              <p className={styles.subtitle}>We sent a code to {phoneNumber}</p>
-
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Verification Code</label>
-                <input
-                  type="text"
-                  className={styles.input}
-                  placeholder="1234"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  disabled={loading}
-                  maxLength={6}
-                  required
-                />
-              </div>
-
-              <button type="submit" className={styles.submitBtn} disabled={loading || otp.length < 4}>
-                {loading ? "Verifying..." : "Secure Sign In"}
-              </button>
-
-              <div style={{ marginTop: '1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
-                {cooldown > 0 ? (
-                  <p style={{ color: '#666', fontSize: '0.9rem', margin: 0 }}>Resend code in {cooldown}s</p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    disabled={loading}
-                    style={{ background: 'none', border: 'none', color: 'var(--color-gold)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '500', padding: 0 }}
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Mobile Number</label>
+                    <input
+                      type="tel"
+                      className={styles.input}
+                      placeholder="98765 43210"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+                  
+                  {/* Captcha Pop-up moved below input, elegantly styled */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className={styles.captchaPopup}
                   >
-                    Resend Code
+                    <div id="msg91-captcha"></div>
+                  </motion.div>
+
+                  <button type="submit" className={styles.submitBtn} disabled={loading || !phoneNumber || cooldown > 0 || !widgetReady}>
+                    {cooldown > 0 ? `Wait ${cooldown}s` : (loading ? "Sending Code..." : "Continue")}
                   </button>
-                )}
+                </form>
+              </motion.div>
+            )}
 
-                <button
-                  type="button"
-                  onClick={() => { setStep("phone"); setError(""); }}
-                  style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '0.85rem', padding: 0 }}
-                >
-                  Change phone number
-                </button>
-              </div>
-            </form>
+            {step === "otp" && (
+              <motion.div
+                key="otp"
+                initial="initial"
+                animate="in"
+                exit="out"
+                variants={pageVariants}
+                transition={{ type: "tween", ease: "anticipate", duration: 0.4 }}
+                className={styles.formContentWrapper}
+              >
+                <form onSubmit={handleVerifyOtp}>
+                  <h1 className={styles.title}>Verify</h1>
+                  <p className={styles.subtitle}>We sent a code to {phoneNumber}</p>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.label} style={{ textAlign: "center" }}>Verification Code</label>
+                    <div className={styles.otpContainer}>
+                      {[0, 1, 2, 3].map((index) => (
+                        <input
+                          key={index}
+                          ref={(el) => { otpRefs.current[index] = el; }}
+                          type="text"
+                          inputMode="numeric"
+                          className={styles.otpBox}
+                          value={otpArray[index]}
+                          onChange={(e) => handleOtpChange(index, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                          disabled={loading}
+                          maxLength={1}
+                          required
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <button type="submit" className={styles.submitBtn} disabled={loading || otpArray.join('').length < 4}>
+                    {loading ? "Verifying..." : "Secure Sign In"}
+                  </button>
+
+                  <div style={{ marginTop: '1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+                    {cooldown > 0 ? (
+                      <p style={{ color: '#666', fontSize: '0.9rem', margin: 0 }}>Resend code in {cooldown}s</p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResendOtp}
+                        disabled={loading}
+                        style={{ background: 'none', border: 'none', color: 'var(--color-gold)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '500', padding: 0 }}
+                      >
+                        Resend Code
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => { setStep("phone"); setError(""); setOtpArray(["", "", "", ""]); }}
+                      style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '0.85rem', padding: 0 }}
+                    >
+                      Change phone number
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {step === "profile" && (
+              <motion.div
+                key="profile"
+                initial="initial"
+                animate="in"
+                exit="out"
+                variants={pageVariants}
+                transition={{ type: "tween", ease: "anticipate", duration: 0.4 }}
+                className={styles.formContentWrapper}
+              >
+                <form onSubmit={handleCreateProfile}>
+                  <h1 className={styles.title}>Complete Profile</h1>
+                  <p className={styles.subtitle}>Almost there! What should we call you?</p>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Full Name</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      placeholder="Jane Doe"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Email Address (Optional)</label>
+                    <input
+                      type="email"
+                      className={styles.input}
+                      placeholder="jane@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <button type="submit" className={styles.submitBtn} disabled={loading || !name}>
+                    {loading ? "Saving..." : "Complete Setup"}
+                  </button>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className={styles.error}
+            >
+              {error}
+            </motion.div>
           )}
-
-          {step === "profile" && (
-            <form onSubmit={handleCreateProfile}>
-              <h1 className={styles.title}>Complete Profile</h1>
-              <p className={styles.subtitle}>Almost there! What should we call you?</p>
-
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Full Name</label>
-                <input
-                  type="text"
-                  className={styles.input}
-                  placeholder="Jane Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={loading}
-                  required
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Email Address (Optional)</label>
-                <input
-                  type="email"
-                  className={styles.input}
-                  placeholder="jane@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-
-              <button type="submit" className={styles.submitBtn} disabled={loading || !name}>
-                {loading ? "Saving..." : "Complete Setup"}
-              </button>
-            </form>
-          )}
-
-          {error && <div className={styles.error}>{error}</div>}
         </div>
       </div>
     </div>
