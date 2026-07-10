@@ -87,6 +87,7 @@ export default function LoginPage() {
       widgetId,
       tokenAuth,
       exposeMethods: true,
+      captchaRenderId: "msg91-captcha",
       success: () => {}, 
       failure: (error: any) => console.error("MSG91 widget error:", error),
     };
@@ -255,6 +256,17 @@ export default function LoginPage() {
 
       <div className={styles.formSection}>
         <div className={styles.loginCard}>
+          {/* Captcha container, only visible during phone step and styled minimally */}
+          <div 
+            id="msg91-captcha" 
+            style={{ 
+              display: step === "phone" ? "flex" : "none",
+              justifyContent: "center",
+              marginBottom: "1.5rem",
+              minHeight: "78px", // typical hCaptcha height to prevent layout shift
+            }}
+          ></div>
+
           {step === "phone" && (
             <form onSubmit={handleSendOtp}>
               <h1 className={styles.title}>Welcome</h1>
