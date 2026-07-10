@@ -17,31 +17,34 @@ interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
   refresh: () => Promise<void>;
+  isAuthModalOpen: boolean;
+  openAuthModal: () => void;
+  closeAuthModal: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   refresh: async () => {},
+  isAuthModalOpen: false,
+  openAuthModal: () => {},
+  closeAuthModal: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // There's no realtime auth-state listener anymore (that was a Firebase SDK
-  // feature) -- instead, callers explicitly call refresh() right after sign-in
-  // or sign-out completes, so the session cookie is guaranteed to already be
-  // set/cleared by the time this re-fetches.
+  const openAuthModal = useCallback(() => setIsAuthModalOpen(true), []);
+  const closeAuthModal = useCallback(() => setIsAuthModalOpen(false), []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getCurrentUser();
       setUser(res.success && res.user ? (res.user as UserProfile) : null);
     } catch (error) {
-      // If the server action itself throws (e.g. a misconfigured env var
-      // crashing the DB client at module load), fail closed to "signed out"
-      // instead of leaving the UI stuck on a spinner forever.
       console.error("Failed to load auth state:", error);
       setUser(null);
     } finally {
@@ -53,8 +56,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
+  // First-time visitor pop-up logic
+  useEffect(() => {
+    if (!loading && !user) {
+      const hasSeenModal = localStorage.getItem("hasSeenAuthModal");
+      if (!hasSeenModal) {
+        // Slight delay for better UX
+        const timer = setTimeout(() => {
+          setIsAuthModalOpen(true);
+          localStorage.setItem("hasSeenAuthModal", "true");
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [loading, user]);
+
   return (
-    <AuthContext.Provider value={{ user, loading, refresh }}>
+    <AuthContext.Provider value={{ user, loading, refresh, isAuthModalOpen, openAuthModal, closeAuthModal }}>
       {children}
     </AuthContext.Provider>
   );

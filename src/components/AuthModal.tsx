@@ -3,16 +3,16 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { verifyWidgetToken, completeProfile } from "@/app/actions/auth";
-import styles from "./page.module.css";
+import styles from "./AuthModal.module.css";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { X, Phone, ShieldCheck, User as UserIcon, Mail } from "lucide-react";
 
 const WIDGET_SCRIPT_URLS = [
   "https://verify.msg91.com/otp-provider.js",
   "https://verify.phone91.com/otp-provider.js",
 ];
 
-// Module-level state to prevent double script loading in strict mode
 const widgetScriptState: { status: "idle" | "loading" | "ready"; onReady: Array<() => void> } = {
   status: "idle",
   onReady: [],
@@ -24,7 +24,15 @@ const pageVariants = {
   out: { opacity: 0, x: -20 }
 };
 
-export default function LoginPage() {
+const pageTransition = {
+  type: "tween",
+  ease: "anticipate",
+  duration: 0.4
+};
+
+export default function AuthModal() {
+  const { isAuthModalOpen, closeAuthModal, user, loading: authLoading, refresh } = useAuth();
+  
   const [phoneNumber, setPhoneNumber] = useState("");
   const [otpArray, setOtpArray] = useState<string[]>(["", "", "", ""]);
   const [name, setName] = useState("");
@@ -38,19 +46,33 @@ export default function LoginPage() {
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
-  const { user, loading: authLoading, refresh } = useAuth();
+
+  // Reset modal state when closed
+  useEffect(() => {
+    if (!isAuthModalOpen) {
+      setTimeout(() => {
+        setStep("phone");
+        setPhoneNumber("");
+        setOtpArray(["", "", "", ""]);
+        setName("");
+        setEmail("");
+        setError("");
+      }, 300); // Wait for exit animation
+    }
+  }, [isAuthModalOpen]);
 
   // Handle redirect if user is already logged in
   useEffect(() => {
-    if (user && !authLoading) {
+    if (user && !authLoading && isAuthModalOpen) {
       const isProfileComplete = user.displayName && user.displayName.trim() !== "";
       if (isProfileComplete) {
+        closeAuthModal();
         router.push("/account");
       } else if (step !== "profile") {
         setStep("profile");
       }
     }
-  }, [user, authLoading, router, step]);
+  }, [user, authLoading, router, step, isAuthModalOpen, closeAuthModal]);
 
   // Handle cooldown timer for resend OTP
   useEffect(() => {
@@ -73,8 +95,10 @@ export default function LoginPage() {
     }
   }, [cooldown]);
 
-  // Load and initialize MSG91 script
+  // Load and initialize MSG91 script when modal opens
   useEffect(() => {
+    if (!isAuthModalOpen) return;
+
     if (typeof window.sendOtp === "function" || widgetScriptState.status === "ready") {
       setWidgetReady(true);
       return;
@@ -126,7 +150,7 @@ export default function LoginPage() {
       document.head.appendChild(s);
     }
     attempt(0);
-  }, []);
+  }, [isAuthModalOpen]);
 
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -231,12 +255,12 @@ export default function LoginPage() {
 
       if (res.success) {
         await refresh();
+        closeAuthModal();
         router.push("/account");
       } else {
         setError(res.error || "Failed to save profile.");
       }
     } catch (err: any) {
-      console.error("Client side complete profile error:", err);
       setError(`An unexpected error occurred: ${err.message || err.toString()}`);
     } finally {
       setLoading(false);
@@ -251,7 +275,6 @@ export default function LoginPage() {
     newOtp[index] = val.substring(val.length - 1);
     setOtpArray(newOtp);
 
-    // Auto-advance
     if (val && index < 3) {
       otpRefs.current[index + 1]?.focus();
     }
@@ -263,152 +286,154 @@ export default function LoginPage() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className={styles.loadingWrapper}>
-        <div className={styles.spinner}></div>
-        <div className={styles.loadingText}>Securing Connection</div>
-      </div>
-    );
-  }
+  if (!isAuthModalOpen) return null;
 
   return (
-    <div className={styles.splitContainer}>
-      <div className={styles.imageSection}>
-        <div className={styles.imageOverlay}>
-          <h2 className={styles.imageTitle}>Decoristta</h2>
-          <p className={styles.imageSubtitle}>Welcome back to your curated space.</p>
-        </div>
-      </div>
+    <div className={styles.overlay} onClick={(e) => { if (e.target === e.currentTarget) closeAuthModal(); }}>
+      <motion.div 
+        className={styles.modal}
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+      >
+        <button className={styles.closeBtn} onClick={closeAuthModal} aria-label="Close">
+          <X size={20} strokeWidth={1.5} />
+        </button>
 
-      <div className={styles.formSection}>
-        <div className={styles.loginCard}>
-          <AnimatePresence mode="wait">
-            {step === "phone" && (
-              <motion.div
-                key="phone"
-                initial="initial"
-                animate="in"
-                exit="out"
-                variants={pageVariants}
-                transition={{ type: "tween", ease: "anticipate", duration: 0.4 }}
-                className={styles.formContentWrapper}
-              >
-                <form onSubmit={handleSendOtp}>
-                  <h1 className={styles.title}>Welcome</h1>
-                  <p className={styles.subtitle}>Enter your mobile number to securely sign in or create an account.</p>
+        <span className={styles.logo}>Decoristta</span>
 
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Mobile Number</label>
+        <AnimatePresence mode="wait">
+          {step === "phone" && (
+            <motion.div
+              key="phone"
+              initial="initial"
+              animate="in"
+              exit="out"
+              variants={pageVariants}
+              transition={{ type: "tween", ease: "anticipate", duration: 0.4 }}
+              className={styles.formContentWrapper}
+            >
+              <form onSubmit={handleSendOtp}>
+                <h1 className={styles.title}>Welcome</h1>
+                <p className={styles.subtitle}>Enter your mobile number to sign in or create an account.</p>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Mobile Number</label>
+                  <div className={styles.inputWrapper}>
+                    <Phone className={styles.inputIcon} size={18} strokeWidth={1.5} />
                     <input
                       type="tel"
                       className={styles.input}
                       placeholder="98765 43210"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      disabled={loading}
+                      disabled={loading || authLoading}
                       required
                     />
                   </div>
-                  
-                  {/* Captcha Pop-up moved below input, elegantly styled */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className={styles.captchaPopup}
-                  >
-                    <div id="msg91-captcha"></div>
-                  </motion.div>
+                </div>
+                
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className={styles.captchaPopup}
+                  style={{ display: widgetReady ? 'flex' : 'none' }}
+                >
+                  <div id="msg91-captcha"></div>
+                </motion.div>
 
-                  <button type="submit" className={styles.submitBtn} disabled={loading || !phoneNumber || cooldown > 0 || !widgetReady}>
-                    {cooldown > 0 ? `Wait ${cooldown}s` : (loading ? "Sending Code..." : "Continue")}
-                  </button>
-                </form>
-              </motion.div>
-            )}
+                <button type="submit" className={styles.submitBtn} disabled={loading || authLoading || !phoneNumber || cooldown > 0 || !widgetReady}>
+                  {cooldown > 0 ? `Wait ${cooldown}s` : (loading || authLoading ? "Sending..." : "Continue")}
+                </button>
+              </form>
+            </motion.div>
+          )}
 
-            {step === "otp" && (
-              <motion.div
-                key="otp"
-                initial="initial"
-                animate="in"
-                exit="out"
-                variants={pageVariants}
-                transition={{ type: "tween", ease: "anticipate", duration: 0.4 }}
-                className={styles.formContentWrapper}
-              >
-                <form onSubmit={handleVerifyOtp}>
-                  <h1 className={styles.title}>Verify</h1>
-                  <p className={styles.subtitle}>We sent a code to {phoneNumber}</p>
+          {step === "otp" && (
+            <motion.div
+              key="otp"
+              initial="initial"
+              animate="in"
+              exit="out"
+              variants={pageVariants}
+              transition={{ type: "tween", ease: "anticipate", duration: 0.4 }}
+              className={styles.formContentWrapper}
+            >
+              <form onSubmit={handleVerifyOtp}>
+                <h1 className={styles.title}>Verify</h1>
+                <p className={styles.subtitle}>We sent a code to {phoneNumber}</p>
 
-                  <div className={styles.formGroup}>
-                    <label className={styles.label} style={{ textAlign: "center" }}>Verification Code</label>
-                    <div className={styles.otpContainer}>
-                      {[0, 1, 2, 3].map((index) => (
-                        <input
-                          key={index}
-                          ref={(el) => { otpRefs.current[index] = el; }}
-                          type="text"
-                          inputMode="numeric"
-                          className={styles.otpBox}
-                          value={otpArray[index]}
-                          onChange={(e) => handleOtpChange(index, e.target.value)}
-                          onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                          disabled={loading}
-                          maxLength={1}
-                          required
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <button type="submit" className={styles.submitBtn} disabled={loading || otpArray.join('').length < 4}>
-                    {loading ? "Verifying..." : "Secure Sign In"}
-                  </button>
-
-                  <div style={{ marginTop: '1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
-                    {cooldown > 0 ? (
-                      <p style={{ color: '#666', fontSize: '0.9rem', margin: 0 }}>Resend code in {cooldown}s</p>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleResendOtp}
+                <div className={styles.formGroup}>
+                  <div className={styles.otpContainer}>
+                    {[0, 1, 2, 3].map((index) => (
+                      <input
+                        key={index}
+                        ref={(el) => { otpRefs.current[index] = el; }}
+                        type="text"
+                        inputMode="numeric"
+                        className={styles.otpBox}
+                        value={otpArray[index]}
+                        onChange={(e) => handleOtpChange(index, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
                         disabled={loading}
-                        style={{ background: 'none', border: 'none', color: 'var(--color-gold)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '500', padding: 0 }}
-                      >
-                        Resend Code
-                      </button>
-                    )}
+                        maxLength={1}
+                        required
+                      />
+                    ))}
+                  </div>
+                </div>
 
+                <button type="submit" className={styles.submitBtn} disabled={loading || otpArray.join('').length < 4}>
+                  {loading ? "Verifying..." : "Secure Sign In"}
+                  {!loading && <ShieldCheck size={18} strokeWidth={1.5} />}
+                </button>
+
+                <div style={{ marginTop: '1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+                  {cooldown > 0 ? (
+                    <p style={{ color: '#666', fontSize: '0.85rem', margin: 0 }}>Resend code in {cooldown}s</p>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => { setStep("phone"); setError(""); setOtpArray(["", "", "", ""]); }}
-                      style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '0.85rem', padding: 0 }}
+                      onClick={handleResendOtp}
+                      disabled={loading}
+                      style={{ background: 'none', border: 'none', color: 'var(--color-text-dark)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500', padding: 0 }}
                     >
-                      Change phone number
+                      Resend Code
                     </button>
-                  </div>
-                </form>
-              </motion.div>
-            )}
+                  )}
 
-            {step === "profile" && (
-              <motion.div
-                key="profile"
-                initial="initial"
-                animate="in"
-                exit="out"
-                variants={pageVariants}
-                transition={{ type: "tween", ease: "anticipate", duration: 0.4 }}
-                className={styles.formContentWrapper}
-              >
-                <form onSubmit={handleCreateProfile}>
-                  <h1 className={styles.title}>Complete Profile</h1>
-                  <p className={styles.subtitle}>Almost there! What should we call you?</p>
+                  <button
+                    type="button"
+                    onClick={() => { setStep("phone"); setError(""); setOtpArray(["", "", "", ""]); }}
+                    style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '0.85rem', padding: 0 }}
+                  >
+                    Change phone number
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
 
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Full Name</label>
+          {step === "profile" && (
+            <motion.div
+              key="profile"
+              initial="initial"
+              animate="in"
+              exit="out"
+              variants={pageVariants}
+              transition={{ type: "tween", ease: "anticipate", duration: 0.4 }}
+              className={styles.formContentWrapper}
+            >
+              <form onSubmit={handleCreateProfile}>
+                <h1 className={styles.title}>Complete Profile</h1>
+                <p className={styles.subtitle}>Almost there! What should we call you?</p>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Full Name</label>
+                  <div className={styles.inputWrapper}>
+                    <UserIcon className={styles.inputIcon} size={18} strokeWidth={1.5} />
                     <input
                       type="text"
                       className={styles.input}
@@ -419,9 +444,12 @@ export default function LoginPage() {
                       required
                     />
                   </div>
+                </div>
 
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Email Address (Optional)</label>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Email Address (Optional)</label>
+                  <div className={styles.inputWrapper}>
+                    <Mail className={styles.inputIcon} size={18} strokeWidth={1.5} />
                     <input
                       type="email"
                       className={styles.input}
@@ -431,26 +459,26 @@ export default function LoginPage() {
                       disabled={loading}
                     />
                   </div>
+                </div>
 
-                  <button type="submit" className={styles.submitBtn} disabled={loading || !name}>
-                    {loading ? "Saving..." : "Complete Setup"}
-                  </button>
-                </form>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {error && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              className={styles.error}
-            >
-              {error}
+                <button type="submit" className={styles.submitBtn} disabled={loading || !name}>
+                  {loading ? "Saving..." : "Complete Setup"}
+                </button>
+              </form>
             </motion.div>
           )}
-        </div>
-      </div>
+        </AnimatePresence>
+
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, y: 5 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            className={styles.error}
+          >
+            {error}
+          </motion.div>
+        )}
+      </motion.div>
     </div>
   );
 }

@@ -7,14 +7,14 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function Header() {
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
   const router = useRouter();
 
   const handleUserClick = () => {
     if (user) {
       router.push('/account');
     } else {
-      router.push('/login');
+      openAuthModal();
     }
   };
 
