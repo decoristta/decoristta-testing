@@ -1,0 +1,12 @@
+Project url-> https://irsksetoftbynawjmihm.supabase.co
+anon_key->eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlyc2tzZXRvZnRieW5hd2ptaWhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2Njc5NDcsImV4cCI6MjA5OTI0Mzk0N30.5UuO42kjOvUkXOlctpWzjIBud2lhmDSqPN5SAcJk3Kw
+service role key-> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlyc2tzZXRvZnRieW5hd2ptaWhtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzY2Nzk0NywiZXhwIjoyMDk5MjQzOTQ3fQ.exMVO3FB7R1aR5OfOl3FfeTprixpCYBxNv71ofrsphQ
+
+connection_string->postgresql://postgres:decor@shreya@db.irsksetoftbynawjmihm.supabase.co:5432/postgres
+
+msg91_auth_key-> 549204AsacE7rH26a50c19dP1
+
+widgetId: "36676a6a3033323538333831",
+tokenAuth: "549204TtKoEKk2FsO36a50c429P1"
+
+"authkey": "549204AsacE7rH26a50c19dP1"

@@ -1,56 +1,16 @@
 import Image from "next/image";
 import styles from "./page.module.css";
-import fs from "fs";
-import path from "path";
+import { getAllProducts } from "../lib/data";
 
-import CategoryGallery from "../components/CategoryGallery";
-
-// Premium mapping for category folders
-const categoryConfig: Record<string, { title: string, tagline: string }> = {
-  'Candle stand ': { title: 'Luminous Accents', tagline: 'Flickering elegance to warm your most cherished spaces.' },
-  'Lamps': { title: 'Sculptural Illumination', tagline: 'Artistic lighting designs that transform any corner into a statement.' },
-  'Showpieces': { title: 'Curated Artifacts', tagline: 'Handcrafted masterworks designed to spark conversation.' },
-  'Vases': { title: 'The Art of Elegance', tagline: 'Discover silhouettes that bring charm and character to your home.' },
-  'clock': { title: 'Timeless Heritage', tagline: 'Classic timepieces that echo the grandeur of history.' }
-};
-
-// Helper to get all categories directly from the folder names
-function getCategories() {
-  const categoriesPath = path.join(process.cwd(), 'public', 'Product images');
-  try {
-    return fs.readdirSync(categoriesPath).filter(file => {
-      if (file.startsWith('.')) return false; // Ignore .DS_Store
-      return fs.statSync(path.join(categoriesPath, file)).isDirectory();
-    });
-  } catch (error) {
-    console.error("Error reading categories:", error);
-    return [];
-  }
-}
-
-// Helper function to read images dynamically
-function getImages(category: string) {
-  const dirPath = path.join(process.cwd(), 'public', 'Product images', category);
-  try {
-    const files = fs.readdirSync(dirPath);
-    return files
-      .filter(file => file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg'))
-      .map(file => `/Product images/${category}/${file}`);
-  } catch (error) {
-    return [];
-  }
-}
-
+import AllProducts from "../components/AllProducts";
 import { ShieldCheck, Award, Home as HomeIcon, Gift } from 'lucide-react';
 
 export default function Home() {
-  const categories = getCategories();
-  
-  // Array of 3 distinct, high-end editorial CSS grid layouts
-  const gridLayouts = [styles.editorialGridA, styles.editorialGridB, styles.editorialGridC];
+  const allProducts = getAllProducts();
+  const uniqueCategories = Array.from(new Set(allProducts.map(p => p.category)));
 
   return (
-    <main>
+    <main style={{ backgroundColor: 'var(--color-light-bg)' }}>
       {/* Immersive CSS Carousel Hero Section */}
       <section className={styles.hero}>
         <div className={styles.carouselBackground}>
@@ -120,37 +80,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Dynamic Sections Based on Folder Names with Varied Editorial Grids */}
-      {categories.map((category, index) => {
-        const images = getImages(category);
-        if (images.length === 0) return null;
-
-        const config = categoryConfig[category] || { title: category.trim(), tagline: 'Explore our premium collection.' };
-
-        // Alternate colors for a luxury feel
-        const isDark = index % 2 === 0;
-        const themeClass = isDark ? styles.dark : styles.light;
-        
-        // Cycle through the 3 different grid layouts
-        const selectedGridLayout = gridLayouts[index % gridLayouts.length];
-        
-        // Adjust slice depending on the grid layout to perfectly fill the block
-        // Layout A looks best with 7, Layout B with 5, Layout C with 6
-        const sliceCount = (index % 3 === 0) ? 7 : (index % 3 === 1) ? 5 : 6;
-        
-        return (
-          <CategoryGallery
-            key={category}
-            category={category}
-            config={config}
-            images={images}
-            themeClass={themeClass}
-            isDark={isDark}
-            layoutStyle={selectedGridLayout}
-            sliceCount={sliceCount}
-          />
-        );
-      })}
+      {/* New All Products Layout */}
+      <AllProducts products={allProducts} categories={uniqueCategories} />
 
     </main>
   );

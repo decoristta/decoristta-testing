@@ -41,8 +41,8 @@ export default function Footer() {
           <h3>Support</h3>
           <ul>
             <li><Link href="#">Contact</Link></li>
-            <li><Link href="#">Shipping & returns</Link></li>
-            <li><Link href="#">Warranty</Link></li>
+            <li><Link href="/shipping-policy">Shipping Policy</Link></li>
+            <li><Link href="/returns-policy">Returns & Refunds</Link></li>
             <li><Link href="#">FAQs</Link></li>
           </ul>
         </div>
@@ -71,7 +71,7 @@ export default function Footer() {
       <div className={styles.footerBottom}>
         <p>© 2026 Decoristta. All rights reserved.</p>
         <div className={styles.legalLinks}>
-          <Link href="#">Terms</Link>
+          <Link href="/terms">Terms of Use</Link>
           <Link href="#">Privacy</Link>
         </div>
       </div>

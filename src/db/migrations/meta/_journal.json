@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1783194744020,
+      "tag": "0000_powerful_the_initiative",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783675064308,
+      "tag": "0001_pretty_the_anarchist",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783682699503,
+      "tag": "0002_absurd_wildside",
+      "breakpoints": true
+    }
+  ]
+}
