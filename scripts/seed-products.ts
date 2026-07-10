@@ -19,7 +19,7 @@ async function seed() {
 
   console.log(`Found ${records.length} records in CSV.`);
 
-  for (const record of records) {
+  for (const record of records as any[]) {
     const productName = record["Product Name"];
     if (!productName) continue;
 
