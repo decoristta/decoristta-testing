@@ -97,12 +97,17 @@ export default function LoginPage() {
       s.src = WIDGET_SCRIPT_URLS[i];
       s.async = true;
       s.onload = () => {
-        if (typeof window.initSendOTP === "function") {
+        const w = window as any;
+        if (typeof window.initSendOTP === "function" && !w.__msg91_initialized) {
+          w.__msg91_initialized = true;
           window.initSendOTP(configuration);
           widgetScriptState.status = "ready";
           setWidgetReady(true);
           widgetScriptState.onReady.forEach((cb) => cb());
           widgetScriptState.onReady = [];
+        } else if (w.__msg91_initialized) {
+          widgetScriptState.status = "ready";
+          setWidgetReady(true);
         }
       };
       s.onerror = () => {
@@ -214,7 +219,7 @@ export default function LoginPage() {
     try {
       const res = await completeProfile({
         displayName: name,
-        email: email || undefined,
+        email: email,
       });
 
       if (res.success) {
