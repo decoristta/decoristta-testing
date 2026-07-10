@@ -227,8 +227,9 @@ export default function LoginPage() {
       } else {
         setError(res.error || "Failed to save profile.");
       }
-    } catch {
-      setError("An unexpected error occurred.");
+    } catch (err: any) {
+      console.error("Client side complete profile error:", err);
+      setError(`An unexpected error occurred: ${err.message || err.toString()}`);
     } finally {
       setLoading(false);
     }

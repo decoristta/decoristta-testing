@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { requireUserId, getAuthenticatedUserId, createSession, destroySession } from "@/lib/session";
 
 /**
@@ -41,7 +41,7 @@ export async function verifyWidgetToken(accessToken: string) {
       marketingConsent: false,
     }).onConflictDoUpdate({
       target: users.phone,
-      set: { updatedAt: new Date() },
+      set: { updatedAt: sql`now()` },
     }).returning();
 
     await createSession(user.id);
@@ -68,7 +68,7 @@ export async function completeProfile(data: { displayName: string; email?: strin
       .set({
         displayName: data.displayName,
         ...(data.email ? { email: data.email } : {}),
-        updatedAt: new Date(),
+        updatedAt: sql`now()`,
       })
       .where(eq(users.id, userId))
       .returning();
