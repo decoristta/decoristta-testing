@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { addresses } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireUserId } from "@/lib/session";
 
@@ -82,7 +82,7 @@ export async function updateAddress(addressId: string, data: {
         city: data.city,
         state: data.state,
         pincode: data.pincode,
-        updatedAt: new Date(),
+        updatedAt: sql`now()`,
       })
       .where(and(eq(addresses.id, addressId), eq(addresses.userId, userId))); // Ensure they own it
 
