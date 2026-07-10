@@ -17,6 +17,10 @@ export default function proxy(request: NextRequest) {
 
   if (request.nextUrl.pathname.startsWith('/login')) {
     if (hasSessionCookie) {
+      // Don't redirect if it's a Server Action POST request (e.g., completeProfile)
+      if (request.method === 'POST' && request.headers.has('next-action')) {
+        return NextResponse.next();
+      }
       return NextResponse.redirect(new URL('/account', request.url));
     }
   }
