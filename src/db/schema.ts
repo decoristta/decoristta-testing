@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, boolean, integer, numeric, jsonb, pgEnum, check } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, boolean, integer, numeric, jsonb, pgEnum, check, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 // Enums
@@ -8,14 +8,23 @@ export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'authorize
 // Users
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  firebaseUid: varchar('firebase_uid', { length: 128 }).unique().notNull(),
-  email: varchar('email', { length: 255 }).unique(), // Now optional
-  phone: varchar('phone', { length: 50 }).unique(), // Added phone
+  phone: varchar('phone', { length: 20 }).unique().notNull(), // MSG91-verified phone is now the login identifier
+  email: varchar('email', { length: 255 }).unique(),
   displayName: varchar('display_name', { length: 255 }),
   marketingConsent: boolean('marketing_consent').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// Sessions (DB-backed; the cookie just holds this row's id, revocable by deleting the row)
+export const sessions = pgTable('sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('sessions_user_id_idx').on(table.userId),
+]);
 
 // Addresses
 export const addresses = pgTable('addresses', {
@@ -135,3 +144,14 @@ export const auditLogs = pgTable('audit_logs', {
   newData: jsonb('new_data'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// OTP Send Log (Append-only, used purely for server-side rate limiting on the MSG91 Send/Resend calls)
+export const otpSendLog = pgTable('otp_send_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  phone: varchar('phone', { length: 20 }).notNull(),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('otp_send_log_phone_idx').on(table.phone, table.createdAt),
+  index('otp_send_log_ip_idx').on(table.ipAddress, table.createdAt),
+]);

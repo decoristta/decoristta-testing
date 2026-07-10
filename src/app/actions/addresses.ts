@@ -1,28 +1,17 @@
 "use server";
 
 import { db } from "@/db";
-import { users, addresses } from "@/db/schema";
+import { addresses } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { requireUid } from "@/lib/session";
-
-/**
- * Gets the internal Postgres User ID for the currently signed-in user
- * (Firebase UID comes from the verified session, never from client input).
- */
-async function getCurrentUserId() {
-  const firebaseUid = await requireUid();
-  const result = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid));
-  if (result.length === 0) throw new Error("User not found in Postgres");
-  return result[0].id;
-}
+import { requireUserId } from "@/lib/session";
 
 /**
  * Fetches all addresses for the currently signed-in user
  */
 export async function getUserAddresses() {
   try {
-    const userId = await getCurrentUserId();
+    const userId = await requireUserId();
     const result = await db.select().from(addresses).where(eq(addresses.userId, userId));
     return { success: true, addresses: result };
   } catch (error: any) {
@@ -42,14 +31,12 @@ export async function addAddress(data: {
   pincode: string;
 }) {
   try {
-    // Basic validation
     if (!/^\d{6}$/.test(data.pincode)) {
       return { success: false, error: "Pincode must be exactly 6 digits" };
     }
 
-    const userId = await getCurrentUserId();
+    const userId = await requireUserId();
 
-    // Check if it's the first address to make it default
     const existing = await db.select({ id: addresses.id }).from(addresses).where(eq(addresses.userId, userId));
     const isDefault = existing.length === 0;
 
@@ -86,7 +73,7 @@ export async function updateAddress(addressId: string, data: {
       return { success: false, error: "Pincode must be exactly 6 digits" };
     }
 
-    const userId = await getCurrentUserId();
+    const userId = await requireUserId();
 
     await db.update(addresses)
       .set({
@@ -112,7 +99,7 @@ export async function updateAddress(addressId: string, data: {
  */
 export async function deleteAddress(addressId: string) {
   try {
-    const userId = await getCurrentUserId();
+    const userId = await requireUserId();
     await db.delete(addresses)
       .where(and(eq(addresses.id, addressId), eq(addresses.userId, userId)));
 

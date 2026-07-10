@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signOut, RecaptchaVerifier, PhoneAuthProvider, updatePhoneNumber } from "firebase/auth";
-import { auth } from "@/lib/firebase/config";
 import { getUserAddresses, addAddress, updateAddress, deleteAddress } from "@/app/actions/addresses";
-import { updateUserPhone } from "@/app/actions/auth";
+import { clearSession } from "@/app/actions/auth";
 import styles from "./page.module.css";
 import { useAuth } from "@/context/AuthContext";
 import { Plus, Edit2, Trash2 } from "lucide-react";
@@ -29,8 +27,8 @@ const INDIAN_STATES = [
 
 export default function AccountPage() {
   const router = useRouter();
-  const { user, profile, loading } = useAuth();
-  
+  const { user, loading, refresh } = useAuth();
+
   const [activeTab, setActiveTab] = useState<"profile" | "addresses" | "orders">("profile");
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
@@ -39,14 +37,6 @@ export default function AccountPage() {
   });
   const [addressError, setAddressError] = useState("");
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
-
-  // Phone Update State
-  const [isChangingPhone, setIsChangingPhone] = useState(false);
-  const [newPhone, setNewPhone] = useState("");
-  const [phoneOtp, setPhoneOtp] = useState("");
-  const [phoneVerificationId, setPhoneVerificationId] = useState("");
-  const [phoneError, setPhoneError] = useState("");
-  const [isPhoneUpdating, setIsPhoneUpdating] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -84,7 +74,7 @@ export default function AccountPage() {
               city: postOffice.District,
               state: postOffice.State
             }));
-            setAddressError(""); // Clear any previous pincode errors
+            setAddressError("");
           } else {
             setAddressError("Invalid Pincode. No region found.");
           }
@@ -97,80 +87,21 @@ export default function AccountPage() {
   }, [editAddressData.pincode, isEditingAddress]);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await clearSession();
+    await refresh();
     router.push("/");
-  };
-
-  const handleSendPhoneOtp = async () => {
-    if (!newPhone || !auth.currentUser) return;
-    setIsPhoneUpdating(true);
-    setPhoneError("");
-    
-    try {
-      let cleaned = newPhone.replace(/[^0-9+]/g, '');
-      const formattedPhone = cleaned.startsWith('+') ? cleaned : `+91${cleaned}`;
-      
-      // We must clear old recaptcha instance if any
-      if (window.recaptchaVerifier) {
-        try { window.recaptchaVerifier.clear(); } catch(e) {}
-        window.recaptchaVerifier = undefined;
-      }
-      
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'phone-recaptcha', {
-        'size': 'invisible'
-      });
-      await window.recaptchaVerifier.render();
-
-      const provider = new PhoneAuthProvider(auth);
-      const verificationId = await provider.verifyPhoneNumber(formattedPhone, window.recaptchaVerifier);
-      setPhoneVerificationId(verificationId);
-    } catch (err: any) {
-      console.error(err);
-      setPhoneError(err.message || "Failed to send OTP.");
-    } finally {
-      setIsPhoneUpdating(false);
-    }
-  };
-
-  const handleVerifyPhoneOtp = async () => {
-    if (!phoneOtp || !phoneVerificationId || !auth.currentUser) return;
-    setIsPhoneUpdating(true);
-    setPhoneError("");
-
-    try {
-      const credential = PhoneAuthProvider.credential(phoneVerificationId, phoneOtp);
-      await updatePhoneNumber(auth.currentUser, credential);
-      
-      // Update Postgres
-      let cleaned = newPhone.replace(/[^0-9+]/g, '');
-      const formattedPhone = cleaned.startsWith('+') ? cleaned : `+91${cleaned}`;
-      await updateUserPhone(formattedPhone);
-      
-      // Success
-      setIsChangingPhone(false);
-      setNewPhone("");
-      setPhoneOtp("");
-      setPhoneVerificationId("");
-      window.location.reload(); // Reload to refresh AuthContext
-    } catch (err: any) {
-      console.error(err);
-      setPhoneError(err.message || "Invalid OTP code.");
-    } finally {
-      setIsPhoneUpdating(false);
-    }
   };
 
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setAddressError("");
-    
-    // Strict 6 digit validation
+
     if (!/^\d{6}$/.test(editAddressData.pincode)) {
       setAddressError("Pincode must be exactly 6 digits.");
       return;
     }
-    
+
     try {
       let res;
       if (editAddressData.id) {
@@ -178,11 +109,11 @@ export default function AccountPage() {
       } else {
         res = await addAddress(editAddressData as any);
       }
-      
+
       if (res.success) {
         setIsEditingAddress(false);
         setEditAddressData({ addressLine: '', landmark: '', state: '', city: '', pincode: '' });
-        fetchAddresses(); // Refresh list
+        fetchAddresses();
       } else {
         setAddressError(res.error || "Failed to save address");
       }
@@ -204,7 +135,7 @@ export default function AccountPage() {
     }
   };
 
-  if (loading || !user || !profile) {
+  if (loading || !user) {
     return <div className={styles.container}>Loading profile...</div>;
   }
 
@@ -216,25 +147,25 @@ export default function AccountPage() {
 
       <div className={styles.layout}>
         <aside className={styles.sidebar}>
-          <button 
+          <button
             className={`${styles.navBtn} ${activeTab === 'profile' ? styles.active : ''}`}
             onClick={() => setActiveTab('profile')}
           >
             Profile Details
           </button>
-          <button 
+          <button
             className={`${styles.navBtn} ${activeTab === 'addresses' ? styles.active : ''}`}
             onClick={() => setActiveTab('addresses')}
           >
             Address Book
           </button>
-          <button 
+          <button
             className={`${styles.navBtn} ${activeTab === 'orders' ? styles.active : ''}`}
             onClick={() => setActiveTab('orders')}
           >
             Order History
           </button>
-          
+
           <button className={`${styles.navBtn} ${styles.logoutBtn}`} onClick={handleLogout}>
             Sign Out
           </button>
@@ -247,80 +178,20 @@ export default function AccountPage() {
               <div className={styles.profileDetails}>
                 <div className={styles.detailRow}>
                   <span className={styles.label}>Full Name</span>
-                  <span className={styles.value}>{profile.displayName || profile.name}</span>
+                  <span className={styles.value}>{user.displayName}</span>
                 </div>
                 <div className={styles.detailRow}>
                   <span className={styles.label}>Phone Number</span>
-                  <span className={styles.value}>
-                    {profile.phone}
-                    <button 
-                      onClick={() => setIsChangingPhone(!isChangingPhone)} 
-                      style={{ marginLeft: '1rem', color: 'var(--color-gold)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
-                    >
-                      {isChangingPhone ? 'Cancel' : 'Change'}
-                    </button>
-                  </span>
+                  <span className={styles.value}>{user.phone}</span>
                 </div>
-                
-                {isChangingPhone && (
-                  <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eaeaea' }}>
-                    <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: '#333' }}>Update Mobile Number</h4>
-                    
-                    {!phoneVerificationId ? (
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <input 
-                          type="tel" 
-                          placeholder="New 10-digit number"
-                          className={styles.input}
-                          value={newPhone}
-                          onChange={e => setNewPhone(e.target.value)}
-                          disabled={isPhoneUpdating}
-                          style={{ flex: 1, margin: 0 }}
-                        />
-                        <button 
-                          className={styles.submitBtn} 
-                          onClick={handleSendPhoneOtp}
-                          disabled={isPhoneUpdating || !newPhone}
-                          style={{ margin: 0, padding: '0.75rem 1rem', width: 'auto' }}
-                        >
-                          {isPhoneUpdating ? 'Wait...' : 'Send OTP'}
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <input 
-                          type="text" 
-                          placeholder="6-digit OTP"
-                          className={styles.input}
-                          value={phoneOtp}
-                          onChange={e => setPhoneOtp(e.target.value)}
-                          maxLength={6}
-                          disabled={isPhoneUpdating}
-                          style={{ flex: 1, margin: 0 }}
-                        />
-                        <button 
-                          className={styles.submitBtn} 
-                          onClick={handleVerifyPhoneOtp}
-                          disabled={isPhoneUpdating || phoneOtp.length < 6}
-                          style={{ margin: 0, padding: '0.75rem 1rem', width: 'auto' }}
-                        >
-                          {isPhoneUpdating ? 'Verifying...' : 'Verify'}
-                        </button>
-                      </div>
-                    )}
-                    {phoneError && <p style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.5rem' }}>{phoneError}</p>}
-                    <div id="phone-recaptcha"></div>
-                  </div>
-                )}
-                
                 <div className={styles.detailRow}>
                   <span className={styles.label}>Email</span>
-                  <span className={styles.value}>{profile.email || "Not provided"}</span>
+                  <span className={styles.value}>{user.email || "Not provided"}</span>
                 </div>
                 <div className={styles.detailRow}>
                   <span className={styles.label}>Member Since</span>
                   <span className={styles.value}>
-                    {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "Recently"}
+                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Recently"}
                   </span>
                 </div>
               </div>
@@ -332,7 +203,7 @@ export default function AccountPage() {
               <div className={styles.sectionHeader}>
                 <h2 className={styles.sectionTitle}>Address Book</h2>
                 {!isEditingAddress && (
-                  <button 
+                  <button
                     className={styles.addBtnSmall}
                     onClick={() => {
                       setEditAddressData({ addressLine: '', landmark: '', state: '', city: '', pincode: '' });
@@ -344,27 +215,27 @@ export default function AccountPage() {
                   </button>
                 )}
               </div>
-              
+
               {isEditingAddress ? (
                 <form onSubmit={handleSaveAddress} className={styles.addressForm}>
                   <div className={styles.formGrid}>
                     <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
                       <label className={styles.label}>Flat, House no., Building, Company, Apartment</label>
-                      <input 
-                        type="text" 
-                        className={styles.input} 
+                      <input
+                        type="text"
+                        className={styles.input}
                         value={editAddressData.addressLine}
                         onChange={e => setEditAddressData({...editAddressData, addressLine: e.target.value})}
                         required
                         placeholder="123 Design Street, Suite 400"
                       />
                     </div>
-                    
+
                     <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
                       <label className={styles.label}>Landmark (Optional)</label>
-                      <input 
-                        type="text" 
-                        className={styles.input} 
+                      <input
+                        type="text"
+                        className={styles.input}
                         value={editAddressData.landmark}
                         onChange={e => setEditAddressData({...editAddressData, landmark: e.target.value})}
                         placeholder="E.g. Near Apollo Hospital"
@@ -373,12 +244,11 @@ export default function AccountPage() {
 
                     <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
                       <label className={styles.label}>Pincode</label>
-                      <input 
-                        type="text" 
-                        className={styles.input} 
+                      <input
+                        type="text"
+                        className={styles.input}
                         value={editAddressData.pincode}
                         onChange={e => {
-                          // Only allow numbers, max 6 digits
                           const val = e.target.value.replace(/[^0-9]/g, '').substring(0, 6);
                           setEditAddressData({...editAddressData, pincode: val});
                         }}
@@ -391,9 +261,9 @@ export default function AccountPage() {
 
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Town / City</label>
-                      <input 
-                        type="text" 
-                        className={styles.input} 
+                      <input
+                        type="text"
+                        className={styles.input}
                         value={editAddressData.city}
                         onChange={e => setEditAddressData({...editAddressData, city: e.target.value})}
                         required
@@ -403,7 +273,7 @@ export default function AccountPage() {
 
                     <div className={styles.formGroup}>
                       <label className={styles.label}>State</label>
-                      <select 
+                      <select
                         className={styles.input}
                         value={editAddressData.state}
                         onChange={e => setEditAddressData({...editAddressData, state: e.target.value})}
@@ -416,7 +286,7 @@ export default function AccountPage() {
                       </select>
                     </div>
                   </div>
-                  
+
                   {addressError && <div className={styles.errorText}>{addressError}</div>}
 
                   <div className={styles.formActions}>
@@ -441,8 +311,8 @@ export default function AccountPage() {
                           <p className={styles.addressLineSecondary}>{addr.city}, {addr.state} - {addr.pincode}</p>
                         </div>
                         <div className={styles.addressActions}>
-                          <button 
-                            className={styles.actionBtn} 
+                          <button
+                            className={styles.actionBtn}
                             onClick={() => {
                               setEditAddressData({
                                 id: addr.id,
@@ -457,8 +327,8 @@ export default function AccountPage() {
                           >
                             <Edit2 size={16} /> Edit
                           </button>
-                          <button 
-                            className={`${styles.actionBtn} ${styles.deleteBtn}`} 
+                          <button
+                            className={`${styles.actionBtn} ${styles.deleteBtn}`}
                             onClick={() => handleDeleteAddress(addr.id)}
                           >
                             <Trash2 size={16} /> Delete

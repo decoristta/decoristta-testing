@@ -1,82 +1,51 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
-import { auth } from "@/lib/firebase/config";
-import { getUserProfile, setSession, clearSession } from "@/app/actions/auth";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { getCurrentUser } from "@/app/actions/auth";
 
 interface UserProfile {
-  name?: string;
-  displayName?: string;
-  phone?: string;
-  email?: string;
-  role?: string;
-  createdAt?: any;
+  id: string;
+  phone: string;
+  email: string | null;
+  displayName: string | null;
+  marketingConsent: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface AuthContextType {
-  user: FirebaseUser | null;
-  profile: UserProfile | null;
+  user: UserProfile | null;
   loading: boolean;
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  profile: null,
   loading: true,
+  refresh: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Failsafe: if Firebase Auth takes more than 3 seconds to initialize, force loading to false
-    // This happens frequently in Incognito mode where third-party cookies/IndexedDB are blocked
-    const fallbackTimer = setTimeout(() => {
-      setLoading(false);
-    }, 3000);
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      clearTimeout(fallbackTimer);
-      
-      // If we detect an auth change (like a login), instantly flag as loading
-      // so the UI knows we are fetching the Postgres profile and doesn't blink!
-      setLoading(true); 
-      setUser(firebaseUser);
-      
-      if (firebaseUser) {
-        // Fetch JWT ID Token
-        const idToken = await firebaseUser.getIdToken();
-        
-        // Set secure cryptographically signed server session cookie
-        await setSession(idToken);
-        
-        // Fetch profile from Postgres via Server Action (uid comes from the verified session cookie)
-        const res = await getUserProfile();
-        if (res.success && res.profile) {
-          setProfile(res.profile as UserProfile);
-        } else {
-          setProfile(null);
-        }
-        setLoading(false);
-      } else {
-        // Clear secure server session cookie
-        await clearSession();
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      clearTimeout(fallbackTimer);
-      unsubscribe();
-    };
+  // There's no realtime auth-state listener anymore (that was a Firebase SDK
+  // feature) -- instead, callers explicitly call refresh() right after sign-in
+  // or sign-out completes, so the session cookie is guaranteed to already be
+  // set/cleared by the time this re-fetches.
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const res = await getCurrentUser();
+    setUser(res.success && res.user ? (res.user as UserProfile) : null);
+    setLoading(false);
   }, []);
 
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading }}>
+    <AuthContext.Provider value={{ user, loading, refresh }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,32 +1,63 @@
 import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
+import { db } from "@/db";
+import { sessions } from "@/db/schema";
+import { eq, and, gt } from "drizzle-orm";
+
+const SESSION_COOKIE = "session";
+const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
- * Verifies the httpOnly session cookie against Firebase Admin and returns the
- * Firebase UID it was issued for. This is the only source of truth for "who is
- * making this request" on the server -- never trust a client-supplied uid.
- * Cached per request via React's cache() so repeated calls in one render/action
- * don't re-verify the cookie multiple times.
+ * Looks up the session row for the current request's cookie and returns the
+ * Postgres user id it belongs to, or null if there's no valid session. This is
+ * the only source of truth for "who is making this request" -- never trust a
+ * client-supplied user id. Cached per request via React's cache().
  */
-export const getAuthenticatedUid = cache(async (): Promise<string | null> => {
-  const { adminAuth } = await import("@/lib/firebase/admin");
-  if (!adminAuth) return null;
-
+export const getAuthenticatedUserId = cache(async (): Promise<string | null> => {
   const cookieStore = await cookies();
-  const session = cookieStore.get("session")?.value;
-  if (!session) return null;
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!sessionId) return null;
 
-  try {
-    const decoded = await adminAuth.verifySessionCookie(session, true);
-    return decoded.uid;
-  } catch {
-    return null;
-  }
+  const [session] = await db.select({ userId: sessions.userId })
+    .from(sessions)
+    .where(and(eq(sessions.id, sessionId), gt(sessions.expiresAt, new Date())));
+
+  return session ? session.userId : null;
 });
 
-export async function requireUid(): Promise<string> {
-  const uid = await getAuthenticatedUid();
-  if (!uid) throw new Error("Not authenticated");
-  return uid;
+export async function requireUserId(): Promise<string> {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) throw new Error("Not authenticated");
+  return userId;
+}
+
+/**
+ * Creates a new session row and sets the httpOnly cookie pointing at it.
+ */
+export async function createSession(userId: string): Promise<void> {
+  const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+  const [session] = await db.insert(sessions).values({ userId, expiresAt }).returning({ id: sessions.id });
+
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, session.id, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    expires: expiresAt,
+    path: "/",
+  });
+}
+
+/**
+ * Deletes the session row (so it can't be reused even if the cookie leaks)
+ * and clears the cookie.
+ */
+export async function destroySession(): Promise<void> {
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+  if (sessionId) {
+    await db.delete(sessions).where(eq(sessions.id, sessionId));
+  }
+  cookieStore.delete(SESSION_COOKIE);
 }

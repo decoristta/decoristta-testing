@@ -2,76 +2,80 @@
 
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
-import { cookies } from "next/headers";
-import { requireUid } from "@/lib/session";
+import { eq } from "drizzle-orm";
+import { requireUserId, getAuthenticatedUserId, createSession, destroySession } from "@/lib/session";
 
-// We dynamically import adminAuth inside the action to prevent SSR/Edge runtime crashes
-
-export async function setSession(idToken: string) {
+/**
+ * Verifies an MSG91 OTP-widget access token server-side (never trust the
+ * client-side success callback alone -- the token could be tampered with in
+ * devtools). On success, creates/updates the user row keyed by phone and
+ * issues our own session.
+ */
+export async function verifyWidgetToken(accessToken: string) {
   try {
-    const { adminAuth } = await import("@/lib/firebase/admin");
-    if (!adminAuth) throw new Error("Firebase Admin not initialized");
+    const authkey = process.env.MSG91_AUTHKEY;
+    if (!authkey) throw new Error("MSG91_AUTHKEY is not configured");
 
-    // Verify the ID token cryptographically before trusting any of its claims
-    const decoded = await adminAuth.verifyIdToken(idToken);
-
-    const expiresIn = 60 * 60 * 24 * 7 * 1000; // 1 week in milliseconds
-    const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
-
-    const cookieStore = await cookies();
-    cookieStore.set("session", sessionCookie, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: expiresIn / 1000,
-      path: "/",
+    const res = await fetch("https://control.msg91.com/api/v5/widget/verifyAccessToken", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ authkey, "access-token": accessToken }),
     });
+    const data = await res.json();
 
-    // Failsafe sync using only the server-verified token claims -- never the
-    // client-supplied identity. Existing displayName/phone/email are preserved
-    // (not clobbered with nulls) if this provider didn't supply them.
-    await db.insert(users).values({
-      firebaseUid: decoded.uid,
-      phone: decoded.phone_number ?? null,
-      email: decoded.email ?? null,
-      displayName: decoded.name ?? "",
+    if (data.type !== "success") {
+      return { success: false, error: "Verification failed. Please try again." };
+    }
+
+    // NOTE: MSG91's docs don't spell out the exact field name for the verified
+    // identifier in this response -- trying the shapes seen elsewhere in their
+    // API. If this throws in testing, log `data` here to find the real field.
+    const rawIdentifier: string | undefined =
+      data.message?.identifier ?? data.message?.mobile ?? data.identifier ?? data.mobile;
+
+    if (!rawIdentifier) {
+      console.error("verifyAccessToken succeeded but no identifier found in response:", JSON.stringify(data));
+      return { success: false, error: "Verification succeeded but we couldn't read your phone number." };
+    }
+
+    const phone = rawIdentifier.startsWith("+") ? rawIdentifier : `+${rawIdentifier}`;
+
+    const [user] = await db.insert(users).values({
+      phone,
+      displayName: "",
       marketingConsent: false,
     }).onConflictDoUpdate({
-      target: users.firebaseUid,
-      set: {
-        phone: decoded.phone_number ?? sql`${users.phone}`,
-        email: decoded.email ?? sql`${users.email}`,
-        updatedAt: new Date(),
-      }
-    });
+      target: users.phone,
+      set: { updatedAt: new Date() },
+    }).returning();
+
+    await createSession(user.id);
 
     return { success: true };
   } catch (error: any) {
-    console.error("Session creation error:", error);
-    return { success: false, error: "Failed to establish session" };
+    console.error("Widget token verification error:", error);
+    return { success: false, error: "Failed to verify. Please try again." };
   }
 }
 
 export async function clearSession() {
-  const cookieStore = await cookies();
-  cookieStore.delete("session");
+  await destroySession();
 }
 
 /**
- * Completes the signed-in user's profile (name/email). The Firebase UID is
- * derived from the verified session cookie, never from client input.
+ * Completes the signed-in user's profile (name/email). The user id is
+ * derived from the verified session, never from client input.
  */
 export async function completeProfile(data: { displayName: string; email?: string }) {
   try {
-    const uid = await requireUid();
+    const userId = await requireUserId();
     await db.update(users)
       .set({
         displayName: data.displayName,
         ...(data.email ? { email: data.email } : {}),
         updatedAt: new Date(),
       })
-      .where(eq(users.firebaseUid, uid));
+      .where(eq(users.id, userId));
 
     return { success: true };
   } catch (error: any) {
@@ -83,30 +87,15 @@ export async function completeProfile(data: { displayName: string; email?: strin
 /**
  * Fetches the profile of the currently signed-in user (from the verified session).
  */
-export async function getUserProfile() {
+export async function getCurrentUser() {
   try {
-    const uid = await requireUid();
-    const result = await db.select().from(users).where(eq(users.firebaseUid, uid));
-    if (result.length > 0) {
-      return { success: true, profile: result[0] };
-    }
-    return { success: true, profile: null };
-  } catch (error: any) {
-    console.error("Fetch Profile Error:", error);
-    return { success: false, error: "Failed to fetch profile" };
-  }
-}
+    const userId = await getAuthenticatedUserId();
+    if (!userId) return { success: true, user: null };
 
-/**
- * Updates the currently signed-in user's phone number in Postgres.
- */
-export async function updateUserPhone(newPhone: string) {
-  try {
-    const uid = await requireUid();
-    await db.update(users).set({ phone: newPhone, updatedAt: new Date() }).where(eq(users.firebaseUid, uid));
-    return { success: true };
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    return { success: true, user: user ?? null };
   } catch (error: any) {
-    console.error("Update Phone Error:", error);
-    return { success: false, error: "Failed to update phone number" };
+    console.error("Fetch current user error:", error);
+    return { success: false, error: "Failed to fetch profile" };
   }
 }
