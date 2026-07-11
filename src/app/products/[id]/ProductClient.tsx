@@ -11,7 +11,8 @@ import { useCart } from "@/context/CartContext";
 
 export default function ProductClient({ product }: { product: Product }) {
   const { user, openAuthModal } = useAuth();
-  const { addItem } = useCart();
+  const { cart, addItem, updateItem } = useCart();
+  const cartItem = cart?.items.find(item => item.product.id === product.id);
   const images = product.images && product.images.length > 0 ? product.images : [product.image];
   const [activeIndex, setActiveIndex] = useState(0);
   const activeImage = images[activeIndex];
@@ -189,12 +190,30 @@ export default function ProductClient({ product }: { product: Product }) {
             </div>
             
             <div className={styles.buttonGroup}>
-              <button 
-                className={styles.addToCartBtn}
-                onClick={() => addItem(product.id, quantity)}
-              >
-                <ShoppingBag size={20} /> Add to Cart
-              </button>
+              {cartItem ? (
+                <div className={styles.quantityControlInline}>
+                  <button 
+                    className={styles.qtyBtnInline} 
+                    onClick={() => updateItem(cartItem.id, cartItem.quantity - 1)}
+                  >
+                    <Minus size={20} />
+                  </button>
+                  <span className={styles.qtyValueInline}>{cartItem.quantity}</span>
+                  <button 
+                    className={styles.qtyBtnInline} 
+                    onClick={() => updateItem(cartItem.id, cartItem.quantity + 1)}
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  className={styles.addToCartBtn}
+                  onClick={() => addItem(product.id, quantity)}
+                >
+                  <ShoppingBag size={20} /> Add to Cart
+                </button>
+              )}
               <button className={styles.buyNowBtn}>
                 Buy Now
               </button>

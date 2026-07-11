@@ -56,7 +56,7 @@ export default function CartDrawer() {
                       >
                         <Minus size={14} />
                       </button>
-                      <span>{item.quantity}</span>
+                      <span className={styles.qtyValue}>{item.quantity}</span>
                       <button 
                         className={styles.qtyBtn}
                         onClick={() => updateItem(item.id, item.quantity + 1)}

@@ -68,7 +68,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       const updatedCart = await addToCart(productId, quantity);
       setCart(updatedCart as any);
-      openCart();
     } catch (error) {
       console.error("Error adding to cart:", error);
     }

@@ -253,6 +253,37 @@
   color: var(--color-text-dark);
 }
 
+.quantityControlInline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--color-text-dark);
+  border-radius: 4px;
+  padding: 0 1rem;
+  flex: 1;
+  background-color: white;
+  min-height: 50px;
+}
+
+.qtyBtnInline {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-dark);
+}
+
+.qtyValueInline {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: #000;
+  font-size: 1.1rem;
+  min-width: 30px;
+  text-align: center;
+}
+
 .buttonGroup {
   display: flex;
   flex: 1;
@@ -286,6 +317,11 @@
   background-color: var(--color-text-dark);
   color: white;
   border: 1px solid var(--color-text-dark);
+}
+
+.buyNowBtn:hover {
+  background-color: var(--color-gold);
+  color: white;
 }
 
 .addToCartBtn:hover, .buyNowBtn:hover {

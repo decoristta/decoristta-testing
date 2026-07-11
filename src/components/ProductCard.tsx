@@ -28,9 +28,12 @@ interface ProductCardProps {
 }
 
 import Link from 'next/link';
+import { Minus, Plus } from 'lucide-react';
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const { addItem } = useCart();
+  const { cart, addItem, updateItem } = useCart();
+  
+  const cartItem = cart?.items.find(item => item.product.id === product.id);
   
   // Simple rendering of stars based on rating
   const fullStars = Math.floor(product.rating);
@@ -85,15 +88,35 @@ export default function ProductCard({ product }: ProductCardProps) {
           <span className={styles.price}>₹{product.price.toLocaleString()}</span>
         </div>
         
-        <button 
-          className={styles.addToCartBtn}
-          onClick={(e) => {
-            e.preventDefault();
-            addItem(product.id, 1);
-          }}
-        >
-          Add to Cart
-        </button>
+        {cartItem ? (
+          <div className={styles.quantityControlInline} onClick={(e) => e.preventDefault()}>
+            <button 
+              className={styles.qtyBtnInline} 
+              onClick={() => updateItem(cartItem.id, cartItem.quantity - 1)}
+              aria-label="Decrease quantity"
+            >
+              <Minus size={16} />
+            </button>
+            <span className={styles.qtyValueInline}>{cartItem.quantity}</span>
+            <button 
+              className={styles.qtyBtnInline} 
+              onClick={() => updateItem(cartItem.id, cartItem.quantity + 1)}
+              aria-label="Increase quantity"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+        ) : (
+          <button 
+            className={styles.addToCartBtn}
+            onClick={(e) => {
+              e.preventDefault();
+              addItem(product.id, 1);
+            }}
+          >
+            Add to Cart
+          </button>
+        )}
       </div>
     </Link>
   );

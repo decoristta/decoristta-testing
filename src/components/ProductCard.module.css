@@ -138,10 +138,42 @@
   font-size: 0.8rem;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s;
   width: 100%;
+}
+
+.quantityControlInline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #eaeaea;
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  width: 100%;
+  margin-top: auto;
+  background-color: #fcfcfc;
+}
+
+.qtyBtnInline {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-dark);
+  padding: 0.2rem;
+}
+
+.qtyValueInline {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--color-text-dark);
+  font-size: 0.9rem;
+  min-width: 20px;
+  text-align: center;
 }
 
 .addToCartBtn:hover {

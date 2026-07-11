@@ -53,8 +53,12 @@ export async function verifyWidgetToken(accessToken: string) {
   }
 }
 
+import { cookies } from "next/headers";
+
 export async function clearSession() {
   await destroySession();
+  const cookieStore = await cookies();
+  cookieStore.delete("cartId");
 }
 
 /**
