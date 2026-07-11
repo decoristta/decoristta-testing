@@ -79,7 +79,7 @@ export async function addToCart(productId: string, quantity: number = 1) {
 
   // Check if item exists
   const existingItem = await db.query.cartItems.findFirst({
-    where: and(eq(cartItems.cartId, cart.id), eq(cartItems.productId, productId))
+    where: and(eq(cartItems.cartId, cart!.id), eq(cartItems.productId, productId))
   });
 
   if (existingItem) {
@@ -88,7 +88,7 @@ export async function addToCart(productId: string, quantity: number = 1) {
       .where(eq(cartItems.id, existingItem.id));
   } else {
     await db.insert(cartItems).values({
-      cartId: cart.id,
+      cartId: cart!.id,
       productId: productId,
       quantity: quantity
     });
