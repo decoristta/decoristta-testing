@@ -11,7 +11,7 @@ import { useCart } from "@/context/CartContext";
 
 export default function ProductClient({ product }: { product: Product }) {
   const { user, openAuthModal } = useAuth();
-  const { cart, addItem, updateItem } = useCart();
+  const { cart, addItem, updateItem, openCart } = useCart();
   const cartItem = cart?.items.find(item => item.product.id === product.id);
   const images = product.images && product.images.length > 0 ? product.images : [product.image];
   const [activeIndex, setActiveIndex] = useState(0);
@@ -191,21 +191,26 @@ export default function ProductClient({ product }: { product: Product }) {
             
             <div className={styles.buttonGroup}>
               {cartItem ? (
-                <div className={styles.quantityControlInline}>
-                  <button 
-                    className={styles.qtyBtnInline} 
-                    onClick={() => updateItem(cartItem.id, cartItem.quantity - 1)}
-                  >
-                    <Minus size={20} />
+                <>
+                  <div className={styles.quantityControlInline}>
+                    <button 
+                      className={styles.qtyBtnInline} 
+                      onClick={() => updateItem(cartItem.id, cartItem.quantity - 1)}
+                    >
+                      <Minus size={20} />
+                    </button>
+                    <span className={styles.qtyValueInline}>{cartItem.quantity}</span>
+                    <button 
+                      className={styles.qtyBtnInline} 
+                      onClick={() => updateItem(cartItem.id, cartItem.quantity + 1)}
+                    >
+                      <Plus size={20} />
+                    </button>
+                  </div>
+                  <button className={styles.goToCartBtn} onClick={() => openCart()}>
+                    Go to Cart
                   </button>
-                  <span className={styles.qtyValueInline}>{cartItem.quantity}</span>
-                  <button 
-                    className={styles.qtyBtnInline} 
-                    onClick={() => updateItem(cartItem.id, cartItem.quantity + 1)}
-                  >
-                    <Plus size={20} />
-                  </button>
-                </div>
+                </>
               ) : (
                 <button 
                   className={styles.addToCartBtn}

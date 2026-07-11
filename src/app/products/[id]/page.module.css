@@ -284,6 +284,29 @@
   text-align: center;
 }
 
+.goToCartBtn {
+  flex: 1;
+  padding: 0.8rem;
+  background-color: transparent;
+  color: var(--color-gold);
+  border: 1px solid var(--color-gold);
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.goToCartBtn:hover {
+  background-color: var(--color-gold);
+  color: white;
+}
+
 .buttonGroup {
   display: flex;
   flex: 1;

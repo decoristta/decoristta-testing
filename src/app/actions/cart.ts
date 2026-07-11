@@ -17,6 +17,7 @@ export async function getCart() {
     activeCart = await db.query.carts.findFirst({
       where: eq(carts.userId, user.id),
       with: {
+        coupon: true,
         items: {
           with: {
             product: {
@@ -33,6 +34,7 @@ export async function getCart() {
     activeCart = await db.query.carts.findFirst({
       where: eq(carts.id, cartId),
       with: {
+        coupon: true,
         items: {
           with: {
             product: {
@@ -112,4 +114,65 @@ export async function updateCartItem(itemId: string, quantity: number) {
 export async function removeFromCart(itemId: string) {
   await db.delete(cartItems).where(eq(cartItems.id, itemId));
   return await getCart();
+}
+
+export async function toggleGiftWrap(itemId: string, isGiftWrapped: boolean) {
+  await db.update(cartItems)
+    .set({ isGiftWrapped })
+    .where(eq(cartItems.id, itemId));
+  return await getCart();
+}
+
+export async function togglePersonalMessage(hasPersonalMessage: boolean) {
+  const cart = await getCart();
+  if (cart) {
+    await db.update(carts)
+      .set({ hasPersonalMessage })
+      .where(eq(carts.id, cart.id));
+  }
+  return await getCart();
+}
+
+export async function applyCoupon(code: string) {
+  const cart = await getCart();
+  if (!cart) return { success: false, error: "No cart found" };
+
+  const { coupons } = await import('@/db/schema');
+  const [coupon] = await db.select().from(coupons).where(and(eq(coupons.code, code.toUpperCase()), eq(coupons.isActive, true)));
+  
+  if (!coupon) return { success: false, error: "Invalid or expired coupon" };
+
+  await db.update(carts)
+    .set({ appliedCouponId: coupon.id })
+    .where(eq(carts.id, cart.id));
+    
+  return { success: true, cart: await getCart() };
+}
+
+export async function removeCoupon() {
+  const cart = await getCart();
+  if (cart) {
+    await db.update(carts)
+      .set({ appliedCouponId: null })
+      .where(eq(carts.id, cart.id));
+  }
+  return await getCart();
+}
+
+export async function getCartSettings() {
+  const { settings } = await import('@/db/schema');
+  const allSettings = await db.select().from(settings).where(eq(settings.isActive, true));
+  
+  // Transform to a key-value object for easy lookup
+  const settingsMap: Record<string, number> = {
+    'convenience_fee': 14, // Defaults from the UI mockups if DB is empty
+    'gift_wrap_fee': 25,
+    'personal_message_fee': 20
+  };
+  
+  allSettings.forEach(s => {
+    settingsMap[s.key] = parseFloat(s.value);
+  });
+  
+  return settingsMap;
 }

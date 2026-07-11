@@ -31,7 +31,7 @@ import Link from 'next/link';
 import { Minus, Plus } from 'lucide-react';
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const { cart, addItem, updateItem } = useCart();
+  const { cart, addItem, updateItem, openCart } = useCart();
   
   const cartItem = cart?.items.find(item => item.product.id === product.id);
   
@@ -89,21 +89,26 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
         
         {cartItem ? (
-          <div className={styles.quantityControlInline} onClick={(e) => e.preventDefault()}>
-            <button 
-              className={styles.qtyBtnInline} 
-              onClick={() => updateItem(cartItem.id, cartItem.quantity - 1)}
-              aria-label="Decrease quantity"
-            >
-              <Minus size={16} />
-            </button>
-            <span className={styles.qtyValueInline}>{cartItem.quantity}</span>
-            <button 
-              className={styles.qtyBtnInline} 
-              onClick={() => updateItem(cartItem.id, cartItem.quantity + 1)}
-              aria-label="Increase quantity"
-            >
-              <Plus size={16} />
+          <div className={styles.cartActionsContainer} onClick={(e) => e.preventDefault()}>
+            <div className={styles.quantityControlInline}>
+              <button 
+                className={styles.qtyBtnInline} 
+                onClick={() => updateItem(cartItem.id, cartItem.quantity - 1)}
+                aria-label="Decrease quantity"
+              >
+                <Minus size={16} />
+              </button>
+              <span className={styles.qtyValueInline}>{cartItem.quantity}</span>
+              <button 
+                className={styles.qtyBtnInline} 
+                onClick={() => updateItem(cartItem.id, cartItem.quantity + 1)}
+                aria-label="Increase quantity"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            <button className={styles.goToCartBtn} onClick={() => openCart()}>
+              Go to Cart
             </button>
           </div>
         ) : (

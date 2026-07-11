@@ -86,6 +86,9 @@ export const inventory = pgTable('inventory', {
 export const carts = pgTable('carts', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  appliedCouponId: uuid('applied_coupon_id'), // Will define relation below to avoid circular issues or just raw UUID if relation is complex
+  hasPersonalMessage: boolean('has_personal_message').default(false).notNull(),
+  personalMessageText: text('personal_message_text'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -95,6 +98,7 @@ export const cartItems = pgTable('cart_items', {
   cartId: uuid('cart_id').notNull().references(() => carts.id, { onDelete: 'cascade' }),
   productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
   quantity: integer('quantity').notNull().default(1),
+  isGiftWrapped: boolean('is_gift_wrapped').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   check('cart_qty_positive', sql`${table.quantity} > 0`)
@@ -163,6 +167,27 @@ export const otpSendLog = pgTable('otp_send_log', {
   index('otp_send_log_ip_idx').on(table.ipAddress, table.createdAt),
 ]);
 
+// Coupons
+export const coupons = pgTable('coupons', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code: varchar('code', { length: 50 }).unique().notNull(),
+  discountType: varchar('discount_type', { length: 20 }).notNull(), // 'percentage' | 'fixed'
+  discountValue: numeric('discount_value', { precision: 10, scale: 2 }).notNull(),
+  minOrderValue: numeric('min_order_value', { precision: 10, scale: 2 }).default('0'),
+  isActive: boolean('is_active').default(true).notNull(),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Settings (Admin controllable globals)
+export const settings = pgTable('settings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: varchar('key', { length: 100 }).unique().notNull(),
+  value: numeric('value', { precision: 10, scale: 2 }).notNull(),
+  description: text('description'),
+  isActive: boolean('is_active').default(true).notNull(),
+});
+
 import { relations } from 'drizzle-orm';
 
 export const cartsRelations = relations(carts, ({ many, one }) => ({
@@ -170,6 +195,10 @@ export const cartsRelations = relations(carts, ({ many, one }) => ({
   user: one(users, {
     fields: [carts.userId],
     references: [users.id],
+  }),
+  coupon: one(coupons, {
+    fields: [carts.appliedCouponId],
+    references: [coupons.id],
   }),
 }));
 
