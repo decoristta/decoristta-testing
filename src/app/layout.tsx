@@ -50,10 +50,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${playfair.variable} ${inter.variable}`}>
         <AuthProvider>
-          <Header />
-          {children}
-          <Footer />
-          <AuthModal />
+          <div style={{ overflowX: 'hidden', width: '100%', position: 'relative' }}>
+            <Header />
+            {children}
+            <Footer />
+            <AuthModal />
+          </div>
         </AuthProvider>
       </body>
     </html>
