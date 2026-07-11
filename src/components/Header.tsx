@@ -32,7 +32,8 @@ export default function Header() {
           {isMobileMenuOpen ? <X size={24} strokeWidth={1.5} /> : <Menu size={24} strokeWidth={1.5} />}
         </button>
         <Link href="/" className={styles.logo}>
-          <Image src="/images/logo.png" alt="Decoristta Logo" width={80} height={80} style={{ objectFit: 'contain' }} priority />
+          <Image src="/images/logo.png" alt="Decoristta Logo" width={55} height={55} style={{ objectFit: 'contain' }} priority className={styles.logoImage} />
+          <span className={styles.logoText}>DECORISTTA</span>
         </Link>
       </div>
 

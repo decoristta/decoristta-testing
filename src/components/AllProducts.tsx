@@ -56,12 +56,6 @@ export default function AllProducts({ products, categories, initialCategory = 'A
   return (
     <section className={styles.section}>
       <div className={styles.container}>
-        <div className={styles.header}>
-          <div className={styles.headerRight}>
-            Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalResults)} of {totalResults} results
-          </div>
-        </div>
-
         <div className={styles.toolbar}>
           <div className={styles.toolbarLeft}>
             <div className={styles.categories}>

@@ -1,6 +1,6 @@
 .header {
   background-color: #e6e0d8; /* Solid beige to match screenshot */
-  padding: 0.8rem 4rem;
+  padding: 0.4rem 2rem; /* Reduced horizontal padding to shift logo left */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -29,7 +29,27 @@
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  gap: 0.1rem; /* Very tight placement beside logo */
+}
+
+.logoImage {
   mix-blend-mode: multiply; /* Removes the white/solid background from the logo */
+  margin-top: 0.4rem; /* Shift logo slightly lower */
+}
+
+.logoText {
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  /* Glossy darker copper gradient */
+  background: linear-gradient(135deg, #a86c47 0%, #dca27a 40%, #cfa076 60%, #8c5230 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  margin-top: 0.4rem; /* Perfectly beside the lower-shifted logo */
 }
 
 .nav {
