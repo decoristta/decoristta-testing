@@ -6,7 +6,8 @@ import { cookies } from 'next/headers';
 import { getCurrentUser } from './auth';
 
 export async function getCart() {
-  const user = await getCurrentUser();
+  const authResult = await getCurrentUser();
+  const user = 'user' in authResult ? authResult.user : null;
   const cookieStore = await cookies();
   const cartId = cookieStore.get('cartId')?.value;
 
@@ -53,7 +54,8 @@ export async function getCart() {
 }
 
 export async function addToCart(productId: string, quantity: number = 1) {
-  const user = await getCurrentUser();
+  const authResult = await getCurrentUser();
+  const user = 'user' in authResult ? authResult.user : null;
   const cookieStore = await cookies();
   let cartId = cookieStore.get('cartId')?.value;
   let cart = await getCart();
