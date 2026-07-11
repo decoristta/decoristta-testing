@@ -163,3 +163,37 @@ export const otpSendLog = pgTable('otp_send_log', {
   index('otp_send_log_ip_idx').on(table.ipAddress, table.createdAt),
 ]);
 
+import { relations } from 'drizzle-orm';
+
+export const cartsRelations = relations(carts, ({ many, one }) => ({
+  items: many(cartItems),
+  user: one(users, {
+    fields: [carts.userId],
+    references: [users.id],
+  }),
+}));
+
+export const cartItemsRelations = relations(cartItems, ({ one }) => ({
+  cart: one(carts, {
+    fields: [cartItems.cartId],
+    references: [carts.id],
+  }),
+  product: one(products, {
+    fields: [cartItems.productId],
+    references: [products.id],
+  }),
+}));
+
+export const productsRelations = relations(products, ({ many }) => ({
+  cartItems: many(cartItems),
+  media: many(productMedia),
+}));
+
+export const productMediaRelations = relations(productMedia, ({ one }) => ({
+  product: one(products, {
+    fields: [productMedia.productId],
+    references: [products.id],
+  }),
+}));
+
+

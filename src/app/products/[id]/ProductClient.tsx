@@ -7,9 +7,11 @@ import { Product } from "@/components/ProductCard";
 import styles from "./page.module.css";
 import { ShoppingBag, ChevronDown, ChevronUp, MapPin, Truck, Star, Info, Plus, Minus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
 
 export default function ProductClient({ product }: { product: Product }) {
   const { user, openAuthModal } = useAuth();
+  const { addItem } = useCart();
   const images = product.images && product.images.length > 0 ? product.images : [product.image];
   const [activeIndex, setActiveIndex] = useState(0);
   const activeImage = images[activeIndex];
@@ -187,7 +189,10 @@ export default function ProductClient({ product }: { product: Product }) {
             </div>
             
             <div className={styles.buttonGroup}>
-              <button className={styles.addToCartBtn}>
+              <button 
+                className={styles.addToCartBtn}
+                onClick={() => addItem(product.id, quantity)}
+              >
                 <ShoppingBag size={20} /> Add to Cart
               </button>
               <button className={styles.buyNowBtn}>

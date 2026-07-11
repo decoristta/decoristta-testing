@@ -6,6 +6,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { AuthProvider } from "@/context/AuthContext";
 import AuthModal from "@/components/AuthModal";
+import { CartProvider } from "@/context/CartContext";
+import CartDrawer from "@/components/CartDrawer";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -50,12 +52,15 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${playfair.variable} ${inter.variable}`}>
         <AuthProvider>
-          <div style={{ overflowX: 'hidden', width: '100%', position: 'relative' }}>
-            <Header />
-            {children}
-            <Footer />
-            <AuthModal />
-          </div>
+          <CartProvider>
+            <div style={{ overflowX: 'hidden', width: '100%', position: 'relative' }}>
+              <Header />
+              {children}
+              <Footer />
+              <AuthModal />
+              <CartDrawer />
+            </div>
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

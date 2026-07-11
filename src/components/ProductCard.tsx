@@ -1,6 +1,8 @@
+'use client';
 import Image from 'next/image';
 import { Heart, Star, StarHalf } from 'lucide-react';
 import styles from './ProductCard.module.css';
+import { useCart } from '@/context/CartContext';
 
 export interface Product {
   id: string;
@@ -28,6 +30,8 @@ interface ProductCardProps {
 import Link from 'next/link';
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const { addItem } = useCart();
+  
   // Simple rendering of stars based on rating
   const fullStars = Math.floor(product.rating);
   const hasHalfStar = product.rating % 1 !== 0;
@@ -85,7 +89,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           className={styles.addToCartBtn}
           onClick={(e) => {
             e.preventDefault();
-            alert('Added to cart!');
+            addItem(product.id, 1);
           }}
         >
           Add to Cart

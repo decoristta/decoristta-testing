@@ -6,11 +6,13 @@ import { Search, Heart, User, ShoppingBag, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import styles from './Header.module.css';
 import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
 import { useRouter } from 'next/navigation';
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, openAuthModal } = useAuth();
+  const { totalItems, openCart } = useCart();
   const router = useRouter();
 
   const handleUserClick = () => {
@@ -58,9 +60,9 @@ export default function Header() {
         <button className={styles.iconBtn} aria-label="Account" onClick={handleUserClick}>
           <User size={20} strokeWidth={1.5} />
         </button>
-        <button className={styles.iconBtn} aria-label="Cart">
+        <button className={styles.iconBtn} aria-label="Cart" onClick={openCart}>
           <ShoppingBag size={20} strokeWidth={1.5} />
-          <span className={styles.badge}>0</span>
+          {totalItems > 0 && <span className={styles.badge}>{totalItems}</span>}
         </button>
       </div>
 
