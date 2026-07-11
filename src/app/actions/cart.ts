@@ -7,7 +7,7 @@ import { getCurrentUser } from './auth';
 
 export async function getCart() {
   const user = await getCurrentUser();
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const cartId = cookieStore.get('cartId')?.value;
 
   let activeCart = null;
@@ -54,7 +54,7 @@ export async function getCart() {
 
 export async function addToCart(productId: string, quantity: number = 1) {
   const user = await getCurrentUser();
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   let cartId = cookieStore.get('cartId')?.value;
   let cart = await getCart();
 
